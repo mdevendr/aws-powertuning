@@ -103,31 +103,66 @@ jobs:
           ARN=$(aws lambda get-function --function-name "${{ env.PROJECT }}-function" --query 'Configuration.FunctionArn' --output text)
           echo "arn=$ARN" >> $GITHUB_OUTPUT
 
-      - name: Run AWS Lambda Power Tuning (provided ARN)
-        id: tune
+      - name: Run AWS Lambda Power Tuner
+        env:
+          AWS_REGION: us-west-2 # State Machine region
+          POWER_TUNER_ARN: "arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
+          LAMBDA_ARN: "arn:aws:lambda:eu-west-2:211125489043:function:serverless-power-tuning-function"
         run: |
-          AWS_REGION: us-west-2
-          POWER_TUNER_ARN="${{ env.power_tuner_arn }}"
-          if [ -z "$POWER_TUNER_ARN" ]; then echo "missing power_tuner_arn"; exit 1; fi
+          set -e
+          if [ -z "$POWER_TUNER_ARN" ]; then echo "❌ missing power_tuner_arn"; exit 1; fi
+
           STRATEGY="balanced"
-          INPUT=$(jq -n --arg farn "${{ steps.lambda.outputs.arn }}" --arg strat "$STRATEGY" '{
-            lambdaARN:$farn, powerValues:[128,256,512,1024], num:20, payload:{},
-            parallelInvocation:true, strategy:$strat
-          }')
-          EXE=$(aws stepfunctions start-execution --state-machine-arn "$POWER_TUNER_ARN" --input "$INPUT" --query executionArn --output text)
+
+          INPUT=$(jq -n \
+            --arg lambda "$LAMBDA_ARN" \
+            --arg strat "$STRATEGY" \
+            '{
+              lambdaARN:$lambda,
+              powerValues:[128,256,512,1024],
+              num:20,
+              payload:{},
+              parallelInvocation:true,
+              strategy:$strat
+            }')
+
+          EXE=$(aws stepfunctions start-execution \
+            --region "$AWS_REGION" \
+            --state-machine-arn "$POWER_TUNER_ARN" \
+            --input "$INPUT" \
+            --query executionArn \
+            --output text)
+
           echo "Started: $EXE"
+
+          # Poll until finish
           while true; do
-            STATUS=$(aws stepfunctions describe-execution --execution-arn "$EXE" --query status --output text)
+            STATUS=$(aws stepfunctions describe-execution \
+              --region "$AWS_REGION" \
+              --execution-arn "$EXE" \
+              --query status \
+              --output text)
+
             echo "Status: $STATUS"
+
             if [ "$STATUS" = "SUCCEEDED" ]; then break; fi
-            if [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "TIMED_OUT" ] || [ "$STATUS" = "ABORTED" ]; then echo "Execution $STATUS"; exit 1; fi
-            sleep 10
+            if [[ "$STATUS" == "FAILED" || "$STATUS" == "TIMED_OUT" || "$STATUS" == "ABORTED" ]]; then
+              echo "❌ Execution $STATUS"; exit 1;
+            fi
+            sleep 8
           done
-          OUT=$(aws stepfunctions describe-execution --execution-arn "$EXE" --query output --output text)
+
+          OUT=$(aws stepfunctions describe-execution \
+            --region "$AWS_REGION" \
+            --execution-arn "$EXE" \
+            --query output \
+            --output text)
+
           echo "$OUT" > tuning-output.json
+
           BEST=$(jq -r '.power' tuning-output.json)
           echo "best=$BEST" >> $GITHUB_OUTPUT
-          echo "Recommended memory: ${BEST} MB"
+          echo "✅ Recommended memory: ${BEST} MB"
 
       - name: Update Lambda memory
         run: |
