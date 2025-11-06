@@ -107,11 +107,10 @@ jobs:
         env:
           AWS_REGION: us-west-2 # State Machine region
           AWS_DEFAULT_REGION: us-west-2
-          POWER_TUNER_ARN: "arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
           LAMBDA_ARN: "arn:aws:lambda:eu-west-2:211125489043:function:serverless-power-tuning-function"
         run: |
           set -e
-          if [ -z "$POWER_TUNER_ARN" ]; then echo "❌ missing power_tuner_arn"; exit 1; fi
+          if [ -z "${{ env.power_tuner_arn }}" ]; then echo "❌ missing power_tuner_arn"; exit 1; fi
 
           STRATEGY="balanced"
 
@@ -129,7 +128,7 @@ jobs:
 
           EXE=$(aws stepfunctions start-execution \
             --region "$AWS_REGION" \
-            --state-machine-arn "$POWER_TUNER_ARN" \
+            --state-machine-arn "${{ env.power_tuner_arn }}" \
             --input "$INPUT" \
             --query executionArn \
             --output text)
