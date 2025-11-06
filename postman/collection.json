@@ -1,95 +1,63 @@
 {
-  "info": {
-    "name": "API Lambda DynamoDB",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "item": [
+  "name": "Get Item",
+  "event": [
     {
-      "name": "List Items",
-      "request": {
-        "method": "GET",
-        "url": "{{apiBase}}/items"
-      }
-    },
-    {
-      "name": "Create Item",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\"id\":\"test-{{$timestamp}}\",\"name\":\"demo\"}"
-        },
-        "url": "{{apiBase}}/items"
-      }
-    },
-    {
-      "name": "Get Item",
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "exec": [
-              "const CryptoJS = require('crypto-js');",
-              "",
-              "function sign(req, accessKey, secretKey, sessionToken, region = 'eu-west-2', service = 'execute-api') {",
-              "  const url = new URL(req.url.toString());",
-              "  const host = url.host;",
-              "  const amzdate = new Date().toISOString().replace(/[:-]|\\.\\d{3}/g, '');",
-              "  const date = amzdate.substring(0, 8);",
-              "",
-              "  req.addHeader('Host', host);",
-              "  req.addHeader('X-Amz-Date', amzdate);",
-              "  if (sessionToken) req.addHeader('X-Amz-Security-Token', sessionToken);",
-              "",
-              "  const payload = req.body ? req.body.raw || '' : '';",
-              "  const payloadHash = CryptoJS.SHA256(payload).toString();",
-              "",
-              "  const canonicalHeaders = sessionToken",
-              "    ? `host:${host}\\nx-amz-security-token:${sessionToken}\\nx-amz-date:${amzdate}\\n`",
-              "    : `host:${host}\\nx-amz-date:${amzdate}\\n`;",
-              "",
-              "  const signedHeaders = sessionToken",
-              "    ? 'host;x-amz-date;x-amz-security-token'",
-              "    : 'host;x-amz-date';",
-              "",
-              "  const canonicalRequest = [",
-              "    req.method,",
-              "    url.pathname,",
-              "    url.search,",
-              "    canonicalHeaders,",
-              "    signedHeaders,",
-              "    payloadHash",
-              "  ].join('\\n');",
-              "",
-              "  const credentialScope = `${date}/${region}/${service}/aws4_request`;",
-              "  const stringToSign = `AWS4-HMAC-SHA256\\n${amzdate}\\n${credentialScope}\\n${CryptoJS.SHA256(canonicalRequest).toString()}`;",
-              "",
-              "  const kDate = CryptoJS.HmacSHA256(date, 'AWS4' + secretKey);",
-              "  const kRegion = CryptoJS.HmacSHA256(region, kDate);",
-              "  const kService = CryptoJS.HmacSHA256(service, kRegion);",
-              "  const kSigning = CryptoJS.HmacSHA256('aws4_request', kService);",
-              "",
-              "  const signature = CryptoJS.HmacSHA256(stringToSign, kSigning).toString();",
-              "",
-              "  const authHeader = `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;",
-              "  req.addHeader('Authorization', authHeader);",
-              "}",
-              "",
-              "sign(pm.request, pm.environment.get('awsAccessKeyId'), pm.environment.get('awsSecretAccessKey'), pm.environment.get('awsSessionToken'));"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "url": "{{apiBase}}/items/test-{{$timestamp}}"
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "var CryptoJS = CryptoJS || require('crypto-js');",
+          "",
+          "function sign(req, accessKey, secretKey, sessionToken, region = 'eu-west-2', service = 'execute-api') {",
+          "  const url = new URL(req.url.toString());",
+          "  const host = url.host;",
+          "  const amzdate = new Date().toISOString().replace(/[:-]|\\.\\d{3}/g, '');",
+          "  const date = amzdate.substring(0, 8);",
+          "",
+          "  req.addHeader('Host', host);",
+          "  req.addHeader('X-Amz-Date', amzdate);",
+          "  if (sessionToken) req.addHeader('X-Amz-Security-Token', sessionToken);",
+          "",
+          "  const payload = req.body ? req.body.raw || '' : '';",
+          "  const payloadHash = CryptoJS.SHA256(payload).toString();",
+          "",
+          "  const canonicalHeaders = sessionToken",
+          "    ? `host:${host}\\nx-amz-security-token:${sessionToken}\\nx-amz-date:${amzdate}\\n`",
+          "    : `host:${host}\\nx-amz-date:${amzdate}\\n`;",
+          "",
+          "  const signedHeaders = sessionToken",
+          "    ? 'host;x-amz-date;x-amz-security-token'",
+          "    : 'host;x-amz-date';",
+          "",
+          "  const canonicalRequest = [",
+          "    req.method,",
+          "    url.pathname,",
+          "    url.search,",
+          "    canonicalHeaders,",
+          "    signedHeaders,",
+          "    payloadHash",
+          "  ].join('\\n');",
+          "",
+          "  const credentialScope = `${date}/${region}/${service}/aws4_request`;",
+          "  const stringToSign = `AWS4-HMAC-SHA256\\n${amzdate}\\n${credentialScope}\\n${CryptoJS.SHA256(canonicalRequest).toString()}`;",
+          "",
+          "  const kDate = CryptoJS.HmacSHA256(date, 'AWS4' + secretKey);",
+          "  const kRegion = CryptoJS.HmacSHA256(region, kDate);",
+          "  const kService = CryptoJS.HmacSHA256(service, kRegion);",
+          "  const kSigning = CryptoJS.HmacSHA256('aws4_request', kService);",
+          "",
+          "  const signature = CryptoJS.HmacSHA256(stringToSign, kSigning).toString();",
+          "",
+          "  const authHeader = `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;",
+          "  req.addHeader('Authorization', authHeader);",
+          "}",
+          "",
+          "sign(pm.request, pm.environment.get('awsAccessKeyId'), pm.environment.get('awsSecretAccessKey'), pm.environment.get('awsSessionToken'));"
+        ]
       }
     }
-  ]
+  ],
+  "request": {
+    "method": "GET",
+    "url": "{{apiBase}}/items/test-{{$timestamp}}"
+  }
 }
