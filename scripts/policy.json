@@ -1,92 +1,79 @@
-/*
-Note: This is a generated HCL content from the JSON input which is based on the latest API version available.
-To import the resource, please run the following command:
-terraform import azapi_resource. ?api-version=TODO
-
-Or add the below config:
-import {
-  id = "?api-version=TODO"
-  to = azapi_resource.
-}
-*/
-
-resource "azapi_resource"""{
-  type      = "@TODO"
-  parent_id = "/subscriptions/$${var.subscriptionId}/resourceGroups/$${var.resourceGroupName}"
-  name      = ""
-  body = {
-    Statement = [
-      {
-      Action   = [
-          "s3:ListBucket"
-        ]
-      Effect   = "Allow"
-      Resource = "arn:aws:s3:::serverless-power-tuning-tfstate"
-      Sid      = "TFStateBucketList"
-      },
-      {
-      Action   = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject"
-        ]
-      Effect   = "Allow"
-      Resource = "arn:aws:s3:::serverless-power-tuning-tfstate/*"
-      Sid      = "TFStateBucketObjects"
-      },
-      {
-      Action   = [
-          "dynamodb:PutItem",
-          "dynamodb:GetItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:DescribeTable"
-        ]
-      Effect   = "Allow"
-      Resource = "arn:aws:dynamodb:eu-west-2:211125489043:table/serverless-power-tuning-tf-lock"
-      Sid      = "TFStateLocking"
-      },
-      {
-      Action   = [
-          "lambda:UpdateFunctionConfiguration",
-          "lambda:UpdateFunctionCode",
-          "lambda:GetFunction",
-          "lambda:InvokeFunction",
-          "lambda:ListVersionsByFunction"
-        ]
-      Effect   = "Allow"
-      Resource = "*"
-      Sid      = "LambdaDeploy"
-      },
-      {
-      Action   = [
-          "apigateway:*"
-        ]
-      Effect   = "Allow"
-      Resource = "*"
-      Sid      = "APIGatewayDeploy"
-      },
-      {
-        "Sid": "LambdaPowerTuningDynamoDB",
-        "Effect": "Allow",
-        "Action": [
-          "dynamodb:PutItem",
-          "dynamodb:GetItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:Scan"
-        ],
-        "Resource": "arn:aws:dynamodb:eu-west-2:211125489043:table/LambdaPowerTuningTable"
-      },
-      {
-      Action   = [
-          "states:StartExecution",
-          "states:DescribeExecution",
-          "states:DescribeStateMachine"
-        ]
-      Effect   = "Allow"
-      Resource = "arn:aws:states:eu-west-2:211125489043:stateMachine:aws-lambda-power-tuning"
-      Sid      = "StepFunctionsPowerTuner"
-      }
-    ]
-    Version = "2012-10-17"
-  }
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TFStateBucketList",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Resource": "arn:aws:s3:::serverless-power-tuning-tfstate"
+    },
+    {
+      "Sid": "TFStateBucketObjects",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::serverless-power-tuning-tfstate/*"
+    },
+    {
+      "Sid": "TFStateLocking",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+      ],
+      "Resource": "arn:aws:dynamodb:eu-west-2:211125489043:table/serverless-power-tuning-tf-lock"
+    },
+    {
+      "Sid": "LambdaDeploy",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:UpdateFunctionCode",
+        "lambda:GetFunction",
+        "lambda:InvokeFunction",
+        "lambda:ListVersionsByFunction"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "APIGatewayDeploy",
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:GET",
+        "apigateway:POST",
+        "apigateway:PUT",
+        "apigateway:PATCH",
+        "apigateway:DELETE"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LambdaPowerTuningDynamoDB",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:PutItem",
+        "dynamodb:GetItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Scan"
+      ],
+      "Resource": "arn:aws:dynamodb:eu-west-2:211125489043:table/LambdaPowerTuningTable"
+    },
+    {
+      "Sid": "StepFunctionsPowerTuner",
+      "Effect": "Allow",
+      "Action": [
+        "states:StartExecution",
+        "states:DescribeExecution",
+        "states:DescribeStateMachine"
+      ],
+      "Resource": "arn:aws:states:eu-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
+    }
+  ]
 }
