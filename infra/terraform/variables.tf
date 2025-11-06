@@ -14,7 +14,7 @@ variable "project" {
 variable "table_name" {
   description = "DynamoDB table name"
   type        = string
-  default     = "items"
+  default     = "lambda-power-tuning-tests"
 }
 
 variable "lambda_zip_path" {
