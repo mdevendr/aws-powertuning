@@ -3,6 +3,25 @@
     "name": "API Lambda DynamoDB",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const aws4 = require('aws4');",
+          "",
+          "pm.request = aws4.sign(pm.request, {",
+          "  accessKeyId: pm.environment.get('awsAccessKeyId'),",
+          "  secretAccessKey: pm.environment.get('awsSecretAccessKey'),",
+          "  sessionToken: pm.environment.get('awsSessionToken'),",
+          "  service: 'execute-api',",
+          "  region: 'eu-west-2'",
+          "});"
+        ]
+      }
+    }
+  ],
   "item": [
     {
       "name": "List Items",
