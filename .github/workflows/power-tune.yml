@@ -77,13 +77,16 @@ jobs:
           pip install -r requirements.txt -t .
           zip -r package.zip . >/dev/null
           ls -lh package.zip
-      - name: Debug OIDC Token
+      - name: Debug OIDC Token (Correct Decode)
         run: |
-          echo "🔎 Fetching OIDC Token..."
-          TOKEN=$(curl -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+          echo "🔎 Getting GitHub OIDC token..."
+          RAW_JWT=$(curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
-          echo "Decoded OIDC Token Claims:"
-          echo "$TOKEN" | base64 --decode | jq .
+
+          echo "🔎 Decoding payload..."
+          PAYLOAD=$(echo "$RAW_JWT" | cut -d '.' -f2 | base64 -d 2>/dev/null || echo "decode failed")
+
+          echo "$PAYLOAD" | jq .
 
       - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
