@@ -1,0 +1,25 @@
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+
+# Node/Newman
+node_modules/
+
+# Build artifacts
+dist/
+build/
+package.zip
+*.zip
+
+# IDE
+.vscode/
+.idea/

@@ -1,0 +1,125 @@
+
+name: Power Tune Lambda
+
+on:
+  workflow_dispatch:
+    inputs:
+      memoryStrategy:
+        description: "Strategy: balanced | cost | speed"
+        required: false
+        default: "balanced"
+  push:
+    paths:
+      - "lambda/**"
+      - "infra/terraform/**"
+      - ".github/workflows/power-tune.yml"
+
+jobs:
+  deploy-and-tune:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AWS_REGION: eu-west-2
+      PROJECT: serverless-power-tuning
+      TABLE_NAME: items
+      # Provide the ARN of an existing aws-lambda-power-tuning Step Functions state machine
+      POWER_TUNER_ARN: ${{ secrets.POWER_TUNER_ARN }}
+      STRATEGY: ${{ github.event.inputs.memoryStrategy || 'balanced' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Package Lambda
+        working-directory: lambda
+        run: |
+          pip install -r requirements.txt -t .
+          zip -r package.zip . >/dev/null
+          ls -lh package.zip
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init/Apply
+        working-directory: infra/terraform
+        run: |
+          terraform init -input=false
+          terraform apply -auto-approve -input=false
+
+
+echo "Fetching Terraform outputs..."
+echo "invoke_url=$(terraform output -raw invoke_url)" >> $GITHUB_ENV
+# Power tuner ARN from TF when deployed (may be empty)
+if terraform output -json power_tuner_arn >/dev/null 2>&1; then
+  TF_TUNER=$(terraform output -raw power_tuner_arn || echo "")
+  echo "tf_power_tuner_arn=$TF_TUNER" >> $GITHUB_ENV
+fi
+
+      - name: Discover Lambda ARN
+        id: lambda
+        run: |
+          ARN=$(aws lambda get-function --function-name "${PROJECT}-function" --query 'Configuration.FunctionArn' --output text)
+          echo "arn=$ARN" >> $GITHUB_OUTPUT
+
+      - name: Run AWS Lambda Power Tuning
+        id: tune
+        run: |
+          set -e
+          # Prefer secret; fallback to Terraform-provisioned ARN
+          if [ -z "${POWER_TUNER_ARN}" ]; then
+            POWER_TUNER_ARN="${{ env.tf_power_tuner_arn }}"
+          fi
+          if [ -z "${POWER_TUNER_ARN}" ]; then echo "Power Tuner ARN not available"; exit 1; fi
+          INPUT=$(jq -n --arg farn "${{ steps.lambda.outputs.arn }}" --arg strat "${STRATEGY}" '{
+            lambdaARN:$farn,
+            powerValues:[128,256,512,1024],
+            num: 20,
+            payload: {},
+            parallelInvocation: true,
+            strategy: $strat
+          }')
+          EXE=$(aws stepfunctions start-execution --state-machine-arn "$POWER_TUNER_ARN" --input "$INPUT" --query executionArn --output text)
+          echo "Started: $EXE"
+          # wait loop
+          while true; do
+            STATUS=$(aws stepfunctions describe-execution --execution-arn "$EXE" --query status --output text)
+            echo "Status: $STATUS"
+            if [ "$STATUS" = "SUCCEEDED" ]; then break; fi
+            if [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "TIMED_OUT" ] || [ "$STATUS" = "ABORTED" ]; then
+              echo "Execution $STATUS"; exit 1
+            fi
+            sleep 10
+          done
+          OUT=$(aws stepfunctions describe-execution --execution-arn "$EXE" --query output --output text)
+          echo "$OUT" > tuning-output.json
+          BEST=$(jq -r '.power' tuning-output.json)
+          echo "best=$BEST" >> $GITHUB_OUTPUT
+          echo "Recommended memory: ${BEST} MB"
+
+      - name: Update Lambda memory
+        run: |
+          aws lambda update-function-configuration --function-name "${PROJECT}-function" --memory-size "${{ steps.tune.outputs.best }}"
+
+
+- name: Run Newman smoke tests
+  run: |
+    npm i -g newman newman-reporter-html
+    mkdir -p reports
+    newman run postman/collection.json -e postman/env.json             --env-var apiBase="${{ env.invoke_url }}"             --reporters cli,html --reporter-html-export reports/newman.html
+
+- name: Upload artifacts
+  uses: actions/upload-artifact@v4
+  with:
+    name: tuning-and-tests
+    path: |
+      tuning-output.json
+      reports/newman.html

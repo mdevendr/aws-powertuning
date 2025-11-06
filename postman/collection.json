@@ -1,0 +1,40 @@
+{
+  "info": {
+    "name": "API Lambda DynamoDB",
+    "_postman_id": "placeholder",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "List Items",
+      "request": {
+        "method": "GET",
+        "url": "{{apiBase}}/items"
+      }
+    },
+    {
+      "name": "Create Item",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"id\":\"test-{{timestamp}}\",\"name\":\"demo\"}"
+        },
+        "url": "{{apiBase}}/items"
+      }
+    },
+    {
+      "name": "Get Item",
+      "request": {
+        "method": "GET",
+        "url": "{{apiBase}}/items/test-{{timestamp}}"
+      }
+    }
+  ]
+}
