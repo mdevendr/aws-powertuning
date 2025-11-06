@@ -106,6 +106,7 @@ jobs:
       - name: Run AWS Lambda Power Tuner
         env:
           AWS_REGION: us-west-2 # State Machine region
+          AWS_DEFAULT_REGION: us-west-2
           POWER_TUNER_ARN: "arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
           LAMBDA_ARN: "arn:aws:lambda:eu-west-2:211125489043:function:serverless-power-tuning-function"
         run: |
