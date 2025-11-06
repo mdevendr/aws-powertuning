@@ -173,6 +173,14 @@ jobs:
         run: |
           npm i -g newman newman-reporter-html
           mkdir -p reports
+          echo   newman run postman/collection.json \
+            -e postman/env.json \
+            --env-var apiBase="${{ env.invoke_url }}" \
+            --env-var awsAccessKeyId="${{ env.AWS_ACCESS_KEY_ID }}" \
+            --env-var awsSecretAccessKey="${{ env.AWS_SECRET_ACCESS_KEY }}" \
+            --env-var awsSessionToken="${{ env.AWS_SESSION_TOKEN }}" \
+            --reporters cli,html \
+            --reporter-html-export reports/newman.html
           newman run postman/collection.json \
             -e postman/env.json \
             --env-var apiBase="${{ env.invoke_url }}" \
