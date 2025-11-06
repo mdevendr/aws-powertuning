@@ -173,7 +173,6 @@ jobs:
         run: |
           npm install -g newman newman-reporter-html aws4
           mkdir -p reports
-
           newman run postman/collection.json \
             -e postman/env.json \
             --env-var apiBase="${{ env.invoke_url }}" \
