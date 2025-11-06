@@ -97,10 +97,12 @@
       "Action": [
         "states:StartExecution",
         "states:DescribeExecution",
+        "states:DescribeExecutionHistory",
+        "states:DescribeExecution",
         "states:DescribeStateMachine"
       ],
-      "Resource": "arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
-    }
+      "Resource": "*"
+    },
     {
       "Sid": "APIGatewayDeploy",
       "Effect": "Allow",
@@ -123,16 +125,6 @@
         "dynamodb:Scan"
       ],
       "Resource": "arn:aws:dynamodb:eu-west-2:211125489043:table/LambdaPowerTuningTable"
-    },
-    {
-      "Sid": "StepFunctionsPowerTuner",
-      "Effect": "Allow",
-      "Action": [
-        "states:StartExecution",
-        "states:DescribeExecution",
-        "states:DescribeStateMachine"
-      ],
-      "Resource": "arn:aws:states:eu-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
     }
   ]
 }
