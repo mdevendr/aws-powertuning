@@ -1,11 +1,10 @@
-
 name: Power Tune Lambda
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch: {}
 
 permissions:
@@ -25,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
+        with: { python-version: "3.11" }
       - name: Package Lambda
         working-directory: lambda
         run: |
@@ -60,13 +59,15 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
+        with: { python-version: "3.11" }
 
       - name: Package Lambda
         working-directory: lambda
         run: |
           chmod +x package.sh
-          ./package.sh
+                ./package.sh
+      - name: Show OIDC subject (sub)
+        run: echo "SUB = repo:${{ github.repository }}:ref:${{ github.ref }}"
 
       - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
