@@ -32,6 +32,7 @@ jobs:
         with:
           python-version: "3.11"
 
+      # ⬅️ Reverted to your working version (no audience/output-env-credentials)
       - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -47,8 +48,7 @@ jobs:
           test -f lambda.zip && echo "Packaged lambda.zip"
 
       - name: Terraform Init
-        run: |
-          terraform init
+        run: terraform init
 
       - name: Terraform Apply
         env:
@@ -65,7 +65,6 @@ jobs:
           echo "PowerTuner:  $POWER_TUNER_ARN"
           echo "Mem Update:  $MEMORY_UPDATE_MODE"
 
-      # Start Power Tuner execution
       - name: Run Power Tuner
         id: tune
         run: |
@@ -75,10 +74,7 @@ jobs:
             exit 1
           fi
 
-          LAMBDA_ARN="arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:${PROJECT}-function"
-          # attempt to resolve account id
           AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
           INPUT=$(jq -n \
             --arg lambda "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:${PROJECT}-function" \
             --arg strat "balanced" \
@@ -104,12 +100,10 @@ jobs:
               --execution-arn "$EXE" \
               --query status \
               --output text)
-
             echo "Status: $STATUS"
             if [ "$STATUS" = "SUCCEEDED" ]; then break; fi
             if [[ "$STATUS" == "FAILED" || "$STATUS" == "TIMED_OUT" || "$STATUS" == "ABORTED" ]]; then
-              echo "❌ Execution $STATUS"
-              exit 1
+              echo "❌ Execution $STATUS"; exit 1
             fi
             sleep 8
           done
@@ -119,7 +113,7 @@ jobs:
           echo "best=$BEST" >> $GITHUB_OUTPUT
           echo "✅ Recommended memory: ${BEST} MB"
 
-      # Optional manual approval if memory_update_mode = manual
+      # Manual approval gate when memory_update_mode = manual
       - name: Await Approval
         if: ${{ env.MEMORY_UPDATE_MODE == 'manual' }}
         uses: trstringer/manual-approval@v1
@@ -139,7 +133,6 @@ jobs:
             --memory-size "${{ steps.tune.outputs.best }}"
           echo "✅ Memory updated to ${{ steps.tune.outputs.best }} MB"
 
-      # Smoke tests (Newman)
       - name: Run Newman smoke tests
         run: |
           npm i -g newman newman-reporter-html
