@@ -99,6 +99,7 @@
         "states:DescribeExecution",
         "states:DescribeExecutionHistory",
         "states:DescribeExecution",
+        "states:ListStateMachines",
         "states:DescribeStateMachine"
       ],
       "Resource": "*"
