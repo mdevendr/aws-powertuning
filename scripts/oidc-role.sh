@@ -59,6 +59,11 @@ aws iam put-role-policy \
 
 ROLE_ARN="arn:aws:iam::$ACCOUNT_ID:role/$ROLE_NAME"
 
+aws iam update-open-id-connect-provider-thumbprint \
+  --open-id-connect-provider-arn arn:aws:iam::211125489043:oidc-provider/token.actions.githubusercontent.com \
+  --thumbprint-list 6938ef5d6138fbb87b3b0b1dd5d2efb0d282cc4a
+
+
 echo ""
 echo "🎉 Role is ready!"
 echo "👉 Use this in your GitHub Actions workflow:"
