@@ -53,8 +53,8 @@ data "aws_iam_policy_document" "lambda_policy" {
   }
 
   statement {
-    effect   = "Allow"
-    actions  = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:DeleteItem", "dynamodb:Scan"]
+    effect    = "Allow"
+    actions   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:DeleteItem", "dynamodb:Scan"]
     resources = [aws_dynamodb_table.items.arn]
   }
 }
@@ -121,21 +121,21 @@ resource "aws_api_gateway_method" "item_id_any" {
 
 # Integrations with Lambda (proxy)
 resource "aws_api_gateway_integration" "items" {
-  rest_api_id = aws_api_gateway_rest_api.api.id
-  resource_id = aws_api_gateway_resource.items.id
-  http_method = aws_api_gateway_method.items_any.http_method
-  type        = "AWS_PROXY"
+  rest_api_id             = aws_api_gateway_rest_api.api.id
+  resource_id             = aws_api_gateway_resource.items.id
+  http_method             = aws_api_gateway_method.items_any.http_method
+  type                    = "AWS_PROXY"
   integration_http_method = "POST"
-  uri         = aws_lambda_function.api.invoke_arn
+  uri                     = aws_lambda_function.api.invoke_arn
 }
 
 resource "aws_api_gateway_integration" "item_id" {
-  rest_api_id = aws_api_gateway_rest_api.api.id
-  resource_id = aws_api_gateway_resource.item_id.id
-  http_method = aws_api_gateway_method.item_id_any.http_method
-  type        = "AWS_PROXY"
+  rest_api_id             = aws_api_gateway_rest_api.api.id
+  resource_id             = aws_api_gateway_resource.item_id.id
+  http_method             = aws_api_gateway_method.item_id_any.http_method
+  type                    = "AWS_PROXY"
   integration_http_method = "POST"
-  uri         = aws_lambda_function.api.invoke_arn
+  uri                     = aws_lambda_function.api.invoke_arn
 }
 
 # Lambda permission for API Gateway
@@ -160,13 +160,13 @@ resource "aws_api_gateway_deployment" "deploy" {
 }
 
 resource "aws_api_gateway_stage" "prod" {
-  rest_api_id = aws_api_gateway_rest_api.api.id
+  rest_api_id   = aws_api_gateway_rest_api.api.id
   deployment_id = aws_api_gateway_deployment.deploy.id
-  stage_name = "prod"
+  stage_name    = "prod"
 }
 
 output "api_url" {
-  value = "${aws_api_gateway_rest_api.api.execution_arn}"
+  value = aws_api_gateway_rest_api.api.execution_arn
 }
 
 output "invoke_url" {
@@ -185,12 +185,11 @@ output "table_name" {
 # ---- Optional: Deploy AWS Lambda Power Tuning (SAR) ----
 # Creates a CloudFormation stack for the open-source app and outputs the StateMachineArn.
 resource "aws_serverlessapplicationrepository_cloudformation_stack" "power_tuner" {
-  count           = var.deploy_power_tuner ? 1 : 0
-  name            = "${var.project}-power-tuner"
-  application_id  = "arn:aws:serverlessrepo:us-east-1:451282441545:applications/aws-lambda-power-tuning"
-  semantic_version = "4.4.7"
-  capabilities    = ["CAPABILITY_IAM"]
-  parameters      = {}
+  count          = var.deploy_power_tuner ? 1 : 0
+  name           = "${var.project}-power-tuner"
+  application_id = "arn:aws:serverlessrepo:us-east-1:451282441545:applications/aws-lambda-power-tuning"
+  capabilities   = ["CAPABILITY_IAM"]
+  parameters     = {}
 }
 
 # Expose the State Machine ARN (either from SAR or left empty when not deployed)
