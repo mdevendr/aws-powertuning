@@ -103,6 +103,7 @@ jobs:
           echo "arn=$ARN" >> $GITHUB_OUTPUT
 
       - name: Run AWS Lambda Power Tuner
+        id: tune
         env:
           AWS_REGION: us-west-2 # State Machine region
           AWS_DEFAULT_REGION: us-west-2
@@ -165,6 +166,7 @@ jobs:
 
       - name: Update Lambda memory
         run: |
+          echo "Best memory determined = ${{ steps.tune.outputs.best }}"
           aws lambda update-function-configuration --function-name "${{ env.PROJECT }}-function" --memory-size "${{ steps.tune.outputs.best }}"
 
       - name: Run Newman smoke tests
