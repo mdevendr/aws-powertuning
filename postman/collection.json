@@ -28,8 +28,9 @@
           "listen": "test",
           "script": {
             "exec": [
-              "var body = JSON.parse(pm.response.text());",
-              "pm.environment.set('lastCreatedId', body.id);"
+              "let data = pm.response.json();",
+              "pm.environment.set('lastCreatedId', data.id);",
+              "console.log('Stored created ID:', data.id);"
             ]
           }
         }
