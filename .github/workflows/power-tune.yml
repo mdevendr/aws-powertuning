@@ -106,6 +106,7 @@ jobs:
       - name: Run AWS Lambda Power Tuning (provided ARN)
         id: tune
         run: |
+          AWS_REGION: us-west-2
           POWER_TUNER_ARN="${{ env.power_tuner_arn }}"
           if [ -z "$POWER_TUNER_ARN" ]; then echo "missing power_tuner_arn"; exit 1; fi
           STRATEGY="balanced"
