@@ -99,7 +99,7 @@
         "states:DescribeExecution",
         "states:DescribeStateMachine"
       ],
-      "Resource": "arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine*"
+      "Resource": "*"
     }
     {
       "Sid": "APIGatewayDeploy",
