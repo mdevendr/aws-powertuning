@@ -175,23 +175,15 @@ resource "aws_lambda_permission" "apigw" {
   source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/*"
 }
 
-resource "aws_api_gateway_deployment" "deploy" {
-  rest_api_id = aws_api_gateway_rest_api.api.id
 
-  # ADDED: include the new /items/{id} integration so changes trigger redeploy
+
+resource "aws_api_gateway_deployment" "deploy2" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
   depends_on = [
     aws_api_gateway_integration.items,
-    aws_api_gateway_integration.item
+    aws_api_gateway_integration.item_id
   ]
 }
-
-# resource "aws_api_gateway_deployment" "deploy2" {
-#   rest_api_id = aws_api_gateway_rest_api.api.id
-#   depends_on = [
-#     aws_api_gateway_integration.items,
-#     aws_api_gateway_integration.item_id
-#   ]
-# }
 
 
 
