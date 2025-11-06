@@ -1,40 +1,36 @@
-
 name: Power Tune Lambda
 
 on:
-  workflow_dispatch:
-    inputs:
-      memoryStrategy:
-        description: "Strategy: balanced | cost | speed"
-        required: false
-        default: "balanced"
+  pull_request:
+    branches: [main] # run on PRs targeting main
   push:
-    paths:
-      - "lambda/**"
-      - "infra/terraform/**"
-      - ".github/workflows/power-tune.yml"
+    branches: [main] # only main can deploy
+  workflow_dispatch: {} # manual run (still respects branch rules)
+
+permissions:
+  id-token: write # for OIDC to AWS
+  contents: read
+
+env:
+  AWS_REGION: eu-west-2
+  PROJECT: serverless-power-tuning
+  TABLE_NAME: items
+  DEPLOY_APPROVER: "mdevendr" # only this GitHub user can deploy
+
+concurrency:
+  group: power-tune-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  deploy-and-tune:
+  # --- CI on PRs (no deployment) ---
+  pr-checks:
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    env:
-      AWS_REGION: eu-west-2
-      PROJECT: serverless-power-tuning
-      TABLE_NAME: items
-      # Provide the ARN of an existing aws-lambda-power-tuning Step Functions state machine
-      POWER_TUNER_ARN: ${{ secrets.POWER_TUNER_ARN }}
-      STRATEGY: ${{ github.event.inputs.memoryStrategy || 'balanced' }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
 
       - name: Package Lambda
         working-directory: lambda
@@ -43,7 +39,46 @@ jobs:
           zip -r package.zip . >/dev/null
           ls -lh package.zip
 
-      - name: Configure AWS credentials (OIDC)
+      - name: Terraform init & validate
+        working-directory: infra/terraform
+        run: |
+          terraform init -input=false
+          terraform validate
+          terraform fmt -check
+
+      - name: Terraform plan (no apply)
+        working-directory: infra/terraform
+        run: |
+          terraform plan -no-color -input=false
+
+  # --- Deploy & Tune (only main) ---
+  deploy-and-tune:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+
+    # Block unless approved and only by you
+    environment:
+      name: production # in GitHub, protect this env & require reviewer @mdevendr
+    steps:
+      - name: Ensure only Mahesh can deploy
+        if: ${{ github.actor != env.DEPLOY_APPROVER }}
+        run: |
+          echo "❌ Deployment blocked: only ${DEPLOY_APPROVER} can deploy to main."
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      - name: Package Lambda
+        working-directory: lambda
+        run: |
+          pip install -r requirements.txt -t .
+          zip -r package.zip . >/dev/null
+          ls -lh package.zip
+
+      - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
@@ -54,15 +89,11 @@ jobs:
         run: |
           terraform init -input=false
           terraform apply -auto-approve -input=false
-
-
-echo "Fetching Terraform outputs..."
-echo "invoke_url=$(terraform output -raw invoke_url)" >> $GITHUB_ENV
-# Power tuner ARN from TF when deployed (may be empty)
-if terraform output -json power_tuner_arn >/dev/null 2>&1; then
-  TF_TUNER=$(terraform output -raw power_tuner_arn || echo "")
-  echo "tf_power_tuner_arn=$TF_TUNER" >> $GITHUB_ENV
-fi
+          echo "invoke_url=$(terraform output -raw invoke_url)" >> $GITHUB_ENV
+          if terraform output -json power_tuner_arn >/dev/null 2>&1; then
+            TF_TUNER=$(terraform output -raw power_tuner_arn || echo "")
+            echo "tf_power_tuner_arn=$TF_TUNER" >> $GITHUB_ENV
+          fi
 
       - name: Discover Lambda ARN
         id: lambda
@@ -73,30 +104,22 @@ fi
       - name: Run AWS Lambda Power Tuning
         id: tune
         run: |
-          set -e
           # Prefer secret; fallback to Terraform-provisioned ARN
-          if [ -z "${POWER_TUNER_ARN}" ]; then
-            POWER_TUNER_ARN="${{ env.tf_power_tuner_arn }}"
-          fi
+          POWER_TUNER_ARN="${{ secrets.POWER_TUNER_ARN }}"
+          if [ -z "${POWER_TUNER_ARN}" ]; then POWER_TUNER_ARN="${{ env.tf_power_tuner_arn }}"; fi
           if [ -z "${POWER_TUNER_ARN}" ]; then echo "Power Tuner ARN not available"; exit 1; fi
-          INPUT=$(jq -n --arg farn "${{ steps.lambda.outputs.arn }}" --arg strat "${STRATEGY}" '{
-            lambdaARN:$farn,
-            powerValues:[128,256,512,1024],
-            num: 20,
-            payload: {},
-            parallelInvocation: true,
-            strategy: $strat
+          STRATEGY="balanced"
+          INPUT=$(jq -n --arg farn "${{ steps.lambda.outputs.arn }}" --arg strat "$STRATEGY" '{
+            lambdaARN:$farn, powerValues:[128,256,512,1024], num:20, payload:{},
+            parallelInvocation:true, strategy:$strat
           }')
           EXE=$(aws stepfunctions start-execution --state-machine-arn "$POWER_TUNER_ARN" --input "$INPUT" --query executionArn --output text)
           echo "Started: $EXE"
-          # wait loop
           while true; do
             STATUS=$(aws stepfunctions describe-execution --execution-arn "$EXE" --query status --output text)
             echo "Status: $STATUS"
             if [ "$STATUS" = "SUCCEEDED" ]; then break; fi
-            if [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "TIMED_OUT" ] || [ "$STATUS" = "ABORTED" ]; then
-              echo "Execution $STATUS"; exit 1
-            fi
+            if [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "TIMED_OUT" ] || [ "$STATUS" = "ABORTED" ]; then echo "Execution $STATUS"; exit 1; fi
             sleep 10
           done
           OUT=$(aws stepfunctions describe-execution --execution-arn "$EXE" --query output --output text)
@@ -109,17 +132,18 @@ fi
         run: |
           aws lambda update-function-configuration --function-name "${PROJECT}-function" --memory-size "${{ steps.tune.outputs.best }}"
 
+      - name: Run Newman smoke tests
+        run: |
+          npm i -g newman newman-reporter-html
+          mkdir -p reports
+          newman run postman/collection.json -e postman/env.json \
+            --env-var apiBase="${{ env.invoke_url }}" \
+            --reporters cli,html --reporter-html-export reports/newman.html
 
-- name: Run Newman smoke tests
-  run: |
-    npm i -g newman newman-reporter-html
-    mkdir -p reports
-    newman run postman/collection.json -e postman/env.json             --env-var apiBase="${{ env.invoke_url }}"             --reporters cli,html --reporter-html-export reports/newman.html
-
-- name: Upload artifacts
-  uses: actions/upload-artifact@v4
-  with:
-    name: tuning-and-tests
-    path: |
-      tuning-output.json
-      reports/newman.html
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tuning-and-tests
+          path: |
+            tuning-output.json
+            reports/newman.html
