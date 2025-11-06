@@ -9,7 +9,7 @@ on:
 
 permissions:
   id-token: write # for OIDC to AWS
-  contents: read
+  contents: write
 
 env:
   AWS_REGION: eu-west-2
