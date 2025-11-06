@@ -7,6 +7,16 @@
     {
       "name": "List Items",
       "request": {
+        "auth": {
+          "type": "awsSigV4",
+          "awsSigV4": {
+            "accessKey": "{{awsAccessKeyId}}",
+            "secretKey": "{{awsSecretAccessKey}}",
+            "sessionToken": "{{awsSessionToken}}",
+            "service": "execute-api",
+            "region": "eu-west-2"
+          }
+        },
         "method": "GET",
         "url": "{{apiBase}}/items"
       }
@@ -14,6 +24,16 @@
     {
       "name": "Create Item",
       "request": {
+        "auth": {
+          "type": "awsSigV4",
+          "awsSigV4": {
+            "accessKey": "{{awsAccessKeyId}}",
+            "secretKey": "{{awsSecretAccessKey}}",
+            "sessionToken": "{{awsSessionToken}}",
+            "service": "execute-api",
+            "region": "eu-west-2"
+          }
+        },
         "method": "POST",
         "header": [
           {
@@ -30,67 +50,17 @@
     },
     {
       "name": "Get Item",
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "exec": [
-              "var CryptoJS = CryptoJS || require('crypto-js');",
-              "",
-              "function sign(req, accessKey, secretKey, sessionToken, region = 'eu-west-2', service = 'execute-api') {",
-              "",
-              "  // SAFE URL PARSING FOR NEWMAN",
-              "  var fullUrl = pm.request.url.getRaw();",
-              "  var host = fullUrl.split('://')[1].split('/')[0];",
-              "  var path = '/' + fullUrl.split('://')[1].split('/').slice(1).join('/');",
-              "",
-              "  var amzdate = new Date().toISOString().replace(/[:-]|\\.\\d{3}/g, '');",
-              "  var date = amzdate.substring(0, 8);",
-              "",
-              "  req.addHeader('Host', host);",
-              "  req.addHeader('X-Amz-Date', amzdate);",
-              "  if (sessionToken) req.addHeader('X-Amz-Security-Token', sessionToken);",
-              "",
-              "  var payload = req.body ? req.body.raw || '' : '';",
-              "  var payloadHash = CryptoJS.SHA256(payload).toString();",
-              "",
-              "  var canonicalHeaders = sessionToken",
-              "    ? `host:${host}\\nx-amz-security-token:${sessionToken}\\nx-amz-date:${amzdate}\\n`",
-              "    : `host:${host}\\nx-amz-date:${amzdate}\\n`;",
-              "",
-              "  var signedHeaders = sessionToken",
-              "    ? 'host;x-amz-date;x-amz-security-token'",
-              "    : 'host;x-amz-date';",
-              "",
-              "  var canonicalRequest = [",
-              "    req.method,",
-              "    path,",
-              "    '',",
-              "    canonicalHeaders,",
-              "    signedHeaders,",
-              "    payloadHash",
-              "  ].join('\\n');",
-              "",
-              "  var credentialScope = `${date}/${region}/${service}/aws4_request`;",
-              "  var stringToSign = `AWS4-HMAC-SHA256\\n${amzdate}\\n${credentialScope}\\n${CryptoJS.SHA256(canonicalRequest).toString()}`;",
-              "",
-              "  var kDate = CryptoJS.HmacSHA256(date, 'AWS4' + secretKey);",
-              "  var kRegion = CryptoJS.HmacSHA256(region, kDate);",
-              "  var kService = CryptoJS.HmacSHA256(service, kRegion);",
-              "  var kSigning = CryptoJS.HmacSHA256('aws4_request', kService);",
-              "",
-              "  var signature = CryptoJS.HmacSHA256(stringToSign, kSigning).toString();",
-              "",
-              "  var authHeader = `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;",
-              "  req.addHeader('Authorization', authHeader);",
-              "}",
-              "",
-              "sign(pm.request, pm.environment.get('awsAccessKeyId'), pm.environment.get('awsSecretAccessKey'), pm.environment.get('awsSessionToken'));"
-            ]
-          }
-        }
-      ],
       "request": {
+        "auth": {
+          "type": "awsSigV4",
+          "awsSigV4": {
+            "accessKey": "{{awsAccessKeyId}}",
+            "secretKey": "{{awsSecretAccessKey}}",
+            "sessionToken": "{{awsSessionToken}}",
+            "service": "execute-api",
+            "region": "eu-west-2"
+          }
+        },
         "method": "GET",
         "url": "{{apiBase}}/items/test-{{$timestamp}}"
       }
