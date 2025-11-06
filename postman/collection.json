@@ -50,6 +50,36 @@
     {
       "name": "Get Item",
       "request": {
+        "auth": {
+          "type": "awsSigV4",
+          "awsSigV4": [
+            {
+              "key": "accessKey",
+              "value": "{{awsAccessKeyId}}",
+              "type": "string"
+            },
+            {
+              "key": "secretKey",
+              "value": "{{awsSecretAccessKey}}",
+              "type": "string"
+            },
+            {
+              "key": "sessionToken",
+              "value": "{{awsSessionToken}}",
+              "type": "string"
+            },
+            {
+              "key": "region",
+              "value": "eu-west-2",
+              "type": "string"
+            },
+            {
+              "key": "service",
+              "value": "execute-api",
+              "type": "string"
+            }
+          ]
+        },
         "method": "GET",
         "url": "{{apiBase}}/items/test-{{$timestamp}}"
       }
