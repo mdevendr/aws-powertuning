@@ -60,6 +60,26 @@ jobs:
 
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
+      - name: Debug OIDC Token
+        run: |
+          echo "repo     = ${{ github.repository }}"
+          echo "ref      = ${{ github.ref }}"
+          echo "workflow = ${{ github.workflow }}"
+          echo "job      = ${{ github.job }}"
+          echo "branch   = ${GITHUB_REF#refs/heads/}"
+
+      - name: Dump full OIDC claims
+        shell: bash
+        env:
+          TOKEN: ${{ steps.get-token.outputs.token }}
+        run: |
+          echo "Requesting ID token..."
+        id: get-token
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken();
+            console.log(token);
 
       - name: Package Lambda
         working-directory: lambda
