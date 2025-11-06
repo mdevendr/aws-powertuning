@@ -32,13 +32,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Configure AWS Credentials (OIDC)
+      - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          audience: sts.amazonaws.com
-          output-env-credentials: true
 
       # If your Lambda.zip is built elsewhere, keep that; otherwise:
       - name: Package Lambda (sample)
