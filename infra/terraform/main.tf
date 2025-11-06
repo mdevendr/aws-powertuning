@@ -1,17 +1,3 @@
-terraform {
-  required_version = ">= 1.4.0"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = var.aws_region
-}
-
 data "aws_caller_identity" "current" {}
 
 ########################################
@@ -92,7 +78,6 @@ resource "aws_lambda_function" "api" {
   runtime       = "python3.11"
   handler       = "app.lambda_handler"
   filename      = var.lambda_zip_path
-  source_code_hash = filebase64sha256(var.lambda_zip_path)
 
   environment {
     variables = {
@@ -104,8 +89,9 @@ resource "aws_lambda_function" "api" {
 }
 
 ########################################
-# API Gateway - REST API + Proxy Integrations
+# API Gateway Setup
 ########################################
+
 resource "aws_api_gateway_rest_api" "api" {
   name = "${var.project}-api"
 }
@@ -162,11 +148,24 @@ resource "aws_api_gateway_integration" "item_id" {
 # Permissions
 ########################################
 resource "aws_lambda_permission" "apigw" {
-  statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.api.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/*"
+}
+
+# --- Minimal future-proofing for Power Tuner ARN ---
+locals {
+  # For now, use the provided variable. Later you can switch this to the SAR output safely.
+  power_tuner_arn = var.power_tuner_arn
+}
+
+resource "aws_lambda_permission" "allow_stepfn" {
+  statement_id  = "AllowExecution"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.api.function_name
+  principal     = "states.amazonaws.com"
+  source_arn    = local.power_tuner_arn
 }
 
 ########################################
@@ -175,7 +174,6 @@ resource "aws_lambda_permission" "apigw" {
 resource "aws_api_gateway_deployment" "deploy" {
   rest_api_id = aws_api_gateway_rest_api.api.id
 
-  # ensure a new deployment when methods/integrations change
   depends_on = [
     aws_api_gateway_integration.items,
     aws_api_gateway_integration.item_id
@@ -189,42 +187,6 @@ resource "aws_api_gateway_stage" "prod" {
 }
 
 ########################################
-# Power Tuner via SAR (optional) + Resolve ARN
-########################################
-
-# Deploy Power Tuner with SAR if enabled and no external ARN passed
-resource "aws_serverlessapplication_repository_cloudformation_stack" "power_tuner" {
-  count            = var.enable_power_tuner_deploy && var.power_tuner_arn == "" ? 1 : 0
-  name             = "${var.project}-power-tuner"
-  # The SAR app is published in us-east-1; you can deploy into your current region
-  application_id   = "arn:aws:serverlessrepo:us-east-1:451282441545:applications/aws-lambda-power-tuning"
-  semantic_version = "4.7.0"
-
-  # minimal parameters; the state machine doesn't need your function wired here
-  # we’ll pass the Lambda ARN in the Step Functions execution input
-  parameters = {}
-}
-
-# resolved ARN preference: SAR output if created, else variable
-locals {
-  resolved_power_tuner_arn = (
-    var.enable_power_tuner_deploy && var.power_tuner_arn == "" && length(aws_serverlessapplication_repository_cloudformation_stack.power_tuner) > 0
-  )
-  ? aws_serverlessapplication_repository_cloudformation_stack.power_tuner[0].outputs["StateMachineArn"]
-  : var.power_tuner_arn
-}
-
-# (Optional) permission to allow the power tuner state machine to invoke this Lambda
-resource "aws_lambda_permission" "allow_stepfn" {
-  count         = local.resolved_power_tuner_arn != "" ? 1 : 0
-  statement_id  = "AllowExecution"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.api.function_name
-  principal     = "states.amazonaws.com"
-  source_arn    = local.resolved_power_tuner_arn
-}
-
-########################################
 # Outputs
 ########################################
 
@@ -233,10 +195,5 @@ output "invoke_url" {
 }
 
 output "power_tuner_arn" {
-  value = local.resolved_power_tuner_arn
-}
-
-# For visibility in CI
-output "memory_update_mode" {
-  value = var.memory_update_mode
+  value = local.power_tuner_arn
 }
