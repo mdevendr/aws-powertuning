@@ -23,6 +23,17 @@
     },
     {
       "name": "Create Item",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var body = JSON.parse(pm.response.text());",
+              "pm.environment.set('lastCreatedId', body.id);"
+            ]
+          }
+        }
+      ],
       "request": {
         "auth": {
           "type": "awsv4",
@@ -62,7 +73,7 @@
           }
         },
         "method": "GET",
-        "url": "{{apiBase}}/items/test-{{$timestamp}}"
+        "url": "{{apiBase}}/items/{{lastCreatedId}}"
       }
     }
   ]
