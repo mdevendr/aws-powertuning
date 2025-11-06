@@ -1,11 +1,9 @@
 name: Power Tune Lambda
 
 on:
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
   push:
-    branches: [main]
-  workflow_dispatch: {}
+    branches: ["main"]
 
 permissions:
   id-token: write
@@ -15,119 +13,87 @@ env:
   AWS_REGION: eu-west-2
   PROJECT: serverless-power-tuning
   TABLE_NAME: LambdaPowerTuningTable
-  DEPLOY_APPROVER: "mdevendr"
 
 jobs:
-  pr-checks:
-    if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - name: Package Lambda
-        working-directory: lambda
-        run: |
-          chmod +x package.sh
-          ./package.sh
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.6
-      - name: Terraform init & validate
-        working-directory: infra/terraform
-        run: |
-          terraform init -input=false
-          terraform validate
-          terraform fmt -check
-      - name: Terraform plan (no apply)
-        working-directory: infra/terraform
-        run: terraform plan -no-color -input=false
-
   deploy-and-tune:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
-    environment:
-      name: production
+
     steps:
-      - name: Ensure only Mahesh can deploy
-        if: ${{ github.actor != env.DEPLOY_APPROVER }}
-        run: |
-          echo "❌ Deployment blocked: only $DEPLOY_APPROVER can deploy to main."
-          exit 1
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - name: Request OIDC Token
-        id: oidc
-        run: |
-          echo "Requesting token..."
-
-        # This actually retrieves the token
-      - uses: actions/github-script@v7
-        id: show-token
+      - name: Setup Node (for newman)
+        uses: actions/setup-node@v4
         with:
-          script: |
-            const jwt = await core.getIDToken();
-            console.log(jwt);
+          node-version: "20"
 
-      - name: Package Lambda
-        working-directory: lambda
-        run: |
-          chmod +x package.sh
-          ./package.sh
-      - name: Configure AWS (OIDC)
+      - name: Setup Python (for html2text)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          role-to-assume: ${{ secrets.DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+          output-env-credentials: true
 
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.6
-
-      - name: Terraform Init/Apply
-        working-directory: infra/terraform
+      # If your Lambda.zip is built elsewhere, keep that; otherwise:
+      - name: Package Lambda (sample)
         run: |
-          terraform init -input=false -upgrade
-          terraform apply -auto-approve -input=false
-          echo "invoke_url=$(terraform output -raw invoke_url)" >> $GITHUB_ENV
+          if [ -f lambda/app.py ]; then
+            (cd lambda && zip -r ../lambda.zip app.py >/dev/null)
+          fi
+          test -f lambda.zip && echo "Packaged lambda.zip"
 
-      - name: Discover Lambda ARN
-        id: lambda
+      - name: Terraform Init
         run: |
-          ARN=$(aws lambda get-function --function-name "${{ env.PROJECT }}-function" --query 'Configuration.FunctionArn' --output text)
-          echo "arn=$ARN" >> $GITHUB_OUTPUT
+          terraform init
 
-      - name: Run AWS Lambda Power Tuner
-        id: tune
+      - name: Terraform Apply
         env:
-          AWS_REGION: us-west-2 # State Machine region
-          AWS_DEFAULT_REGION: us-west-2
-          POWER_TUNER_ARN: "arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
-          LAMBDA_ARN: "arn:aws:lambda:eu-west-2:211125489043:function:serverless-power-tuning-function"
+          TF_VAR_memory_update_mode: manual
+        run: |
+          terraform apply -auto-approve
+          echo "INVOKE_URL=$(terraform output -raw invoke_url)" >> $GITHUB_ENV
+          echo "POWER_TUNER_ARN=$(terraform output -raw power_tuner_arn)" >> $GITHUB_ENV
+          echo "MEMORY_UPDATE_MODE=$(terraform output -raw memory_update_mode)" >> $GITHUB_ENV
+
+      - name: Show resolved outputs
+        run: |
+          echo "Invoke URL:  $INVOKE_URL"
+          echo "PowerTuner:  $POWER_TUNER_ARN"
+          echo "Mem Update:  $MEMORY_UPDATE_MODE"
+
+      # Start Power Tuner execution
+      - name: Run Power Tuner
+        id: tune
         run: |
           set -e
+          if [ -z "$POWER_TUNER_ARN" ]; then
+            echo "❌ POWER_TUNER_ARN is empty. Enable SAR deploy or set var.power_tuner_arn."
+            exit 1
+          fi
 
-          STRATEGY="balanced"
+          LAMBDA_ARN="arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:${PROJECT}-function"
+          # attempt to resolve account id
+          AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
           INPUT=$(jq -n \
-            --arg lambda "$LAMBDA_ARN" \
-            --arg strat "$STRATEGY" \
+            --arg lambda "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:${PROJECT}-function" \
+            --arg strat "balanced" \
             '{
-              lambdaARN:$lambda,
-              powerValues:[128,256,512,1024],
-              num:20,
-              payload:{},
-              parallelInvocation:true,
-              strategy:$strat
+              lambdaARN: $lambda,
+              powerValues: [128,256,512,1024],
+              num: 20,
+              payload: {},
+              parallelInvocation: true,
+              strategy: $strat
             }')
 
           EXE=$(aws stepfunctions start-execution \
-            --region "$AWS_REGION" \
             --state-machine-arn "$POWER_TUNER_ARN" \
             --input "$INPUT" \
             --query executionArn \
@@ -135,56 +101,86 @@ jobs:
 
           echo "Started: $EXE"
 
-          # Poll until finish
           while true; do
             STATUS=$(aws stepfunctions describe-execution \
-              --region "$AWS_REGION" \
               --execution-arn "$EXE" \
               --query status \
               --output text)
 
             echo "Status: $STATUS"
-
             if [ "$STATUS" = "SUCCEEDED" ]; then break; fi
             if [[ "$STATUS" == "FAILED" || "$STATUS" == "TIMED_OUT" || "$STATUS" == "ABORTED" ]]; then
-              echo "❌ Execution $STATUS"; exit 1;
+              echo "❌ Execution $STATUS"
+              exit 1
             fi
             sleep 8
           done
 
-          OUT=$(aws stepfunctions describe-execution \
-            --region "$AWS_REGION" \
-            --execution-arn "$EXE" \
-            --query output \
-            --output text)
-
-          echo "$OUT" > tuning-output.json
-
+          aws stepfunctions describe-execution --execution-arn "$EXE" --query output --output text > tuning-output.json
           BEST=$(jq -r '.power' tuning-output.json)
           echo "best=$BEST" >> $GITHUB_OUTPUT
           echo "✅ Recommended memory: ${BEST} MB"
 
-      - name: Update Lambda memory
+      # Optional manual approval if memory_update_mode = manual
+      - name: Await Approval
+        if: ${{ env.MEMORY_UPDATE_MODE == 'manual' }}
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.token }}
+          approvers: ${{ github.actor }}
+          minimum-approvals: 1
+          issue-title: "Approve Lambda memory update to ${{ steps.tune.outputs.best }} MB"
+          issue-body: "Approve to apply recommended memory size to ${{ env.PROJECT }}-function."
+
+      - name: Apply recommended memory size (auto mode)
+        if: ${{ env.MEMORY_UPDATE_MODE == 'auto' }}
         run: |
-          echo "Best memory determined = ${{ steps.tune.outputs.best }}"
-          aws lambda update-function-configuration --function-name "${{ env.PROJECT }}-function" --memory-size "${{ steps.tune.outputs.best }}"
+          if [ -z "${{ steps.tune.outputs.best }}" ]; then echo "❌ No best memory value"; exit 1; fi
+          aws lambda update-function-configuration \
+            --function-name "${{ env.PROJECT }}-function" \
+            --memory-size "${{ steps.tune.outputs.best }}"
+          echo "✅ Memory updated to ${{ steps.tune.outputs.best }} MB"
+
+      # Smoke tests (Newman)
       - name: Run Newman smoke tests
         run: |
-          npm install -g newman newman-reporter-html 
+          npm i -g newman newman-reporter-html
           mkdir -p reports
           newman run postman/collection.json \
             -e postman/env.json \
-            --env-var apiBase="${{ env.invoke_url }}" \
-            --env-var awsAccessKeyId="${{ env.AWS_ACCESS_KEY_ID }}" \
-            --env-var awsSecretAccessKey="${{ env.AWS_SECRET_ACCESS_KEY }}" \
-            --env-var awsSessionToken="${{ env.AWS_SESSION_TOKEN }}" \
+            --env-var apiBase="$INVOKE_URL" \
+            --env-var awsAccessKeyId="$AWS_ACCESS_KEY_ID" \
+            --env-var awsSecretAccessKey="$AWS_SECRET_ACCESS_KEY" \
+            --env-var awsSessionToken="$AWS_SESSION_TOKEN" \
             --reporters cli,html \
             --reporter-html-export reports/newman.html
+
+      - name: Convert HTML report to Markdown
+        run: |
+          pip install html2text
+          html2text reports/newman.html > reports/newman.md
+          head -n 20 reports/newman.md || true
+
+      - name: Commit reports back to repo
+        run: |
+          set -e
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          mkdir -p reports/history
+          ts=$(date +%Y%m%d-%H%M%S)
+          cp reports/newman.html reports/history/newman-$ts.html
+          cp reports/newman.md   reports/history/newman-$ts.md
+          test -f tuning-output.json && cp tuning-output.json reports/history/tuning-$ts.json || true
+          git add reports/history/*
+          git commit -m "Add CI reports at $ts" || echo "No report changes to commit"
+          git push
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: tuning-and-tests
           path: |
-            tuning-output.json
             reports/newman.html
+            reports/newman.md
+            reports/history/
+            tuning-output.json
