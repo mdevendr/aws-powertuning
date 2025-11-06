@@ -95,7 +95,6 @@ jobs:
           terraform init -input=false -upgrade
           terraform apply -auto-approve -input=false
           echo "invoke_url=$(terraform output -raw invoke_url)" >> $GITHUB_ENV
-          echo "power_tuner_arn=$(terraform output -raw power_tuner_arn)" >> $GITHUB_ENV
 
       - name: Discover Lambda ARN
         id: lambda
@@ -107,10 +106,10 @@ jobs:
         env:
           AWS_REGION: us-west-2 # State Machine region
           AWS_DEFAULT_REGION: us-west-2
+          POWER_TUNER_ARN: "arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
           LAMBDA_ARN: "arn:aws:lambda:eu-west-2:211125489043:function:serverless-power-tuning-function"
         run: |
           set -e
-          if [ -z "${{ env.power_tuner_arn }}" ]; then echo "❌ missing power_tuner_arn"; exit 1; fi
 
           STRATEGY="balanced"
 
@@ -128,7 +127,7 @@ jobs:
 
           EXE=$(aws stepfunctions start-execution \
             --region "$AWS_REGION" \
-            --state-machine-arn "${{ env.power_tuner_arn }}" \
+            --state-machine-arn "$POWER_TUNER_ARN" \
             --input "$INPUT" \
             --query executionArn \
             --output text)
