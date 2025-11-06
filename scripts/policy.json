@@ -10,6 +10,27 @@
       "Resource": "arn:aws:s3:::serverless-power-tuning-tfstate"
     },
     {
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreatePolicy",
+        "iam:CreateRole",
+        "iam:AttachRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:GetRole",
+        "iam:GetPolicy",
+        "iam:ListRolePolicies",
+        "iam:GetPolicyVersion",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListInstanceProfilesForRole",
+        "iam:ListPolicyVersions",
+        "iam:DeletePolicy",
+        "iam:DeleteRole",
+        "iam:DetachRolePolicy",
+        "iam:PassRole"
+      ],
+      "Resource": "*"
+    },
+    {
       "Sid": "TFStateBucketObjects",
       "Effect": "Allow",
       "Action": [
@@ -26,9 +47,29 @@
         "dynamodb:GetItem",
         "dynamodb:PutItem",
         "dynamodb:DeleteItem",
+        "dynamodb:CreateTable",
+        "dynamodb:UpdateTable",
         "dynamodb:DescribeTable"
       ],
       "Resource": "arn:aws:dynamodb:eu-west-2:211125489043:table/serverless-power-tuning-tf-lock"
+    },
+    {
+      "Sid": "LambdaPowerTuning",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:CreateTable",
+        "dynamodb:UpdateTable",
+        "dynamodb:DescribeContinuousBackups",
+        "dynamodb:CreateTable",
+        "dynamodb:ListTagsOfResource",
+        "dynamodb:DescribeTimeToLive",
+        "dynamodb:DeleteTable",
+        "dynamodb:DescribeTable"
+      ],
+      "Resource": "arn:aws:dynamodb:eu-west-2:211125489043:table/LambdaPowerTuningTable"
     },
     {
       "Sid": "LambdaDeploy",
@@ -38,6 +79,14 @@
         "lambda:UpdateFunctionCode",
         "lambda:GetFunction",
         "lambda:InvokeFunction",
+        "lambda:CreateFunction",
+        "lambda:DeleteFunction",
+        "lambda:GetFunctionCodeSigningConfig",
+        "lambda:PutFunctionCodeSigningConfig",
+        "lambda:TagResource",
+        "lambda:AddPermission",
+        "lambda:GetPolicy",
+        "lambda:RemovePermission",
         "lambda:ListVersionsByFunction"
       ],
       "Resource": "*"

@@ -31,13 +31,18 @@ cat > trust-policy.json <<EOF
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::$ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+        "Federated": "arn:aws:iam::211125489043:oidc-provider/token.actions.githubusercontent.com"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": [
+            "repo:mdevendr/aws-powertuning:*",
+            "repo:*/aws-powertuning:*"
+          ]
+        },
         "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-          "token.actions.githubusercontent.com:sub": "repo:mdevendr/aws-powertuning:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         }
       }
     }
