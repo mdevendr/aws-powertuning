@@ -92,6 +92,16 @@
       "Resource": "*"
     },
     {
+      "Sid": "StepFunctionsPowerTunerRun",
+      "Effect": "Allow",
+      "Action": [
+        "states:StartExecution",
+        "states:DescribeExecution",
+        "states:DescribeStateMachine"
+      ],
+      "Resource": "arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine*"
+    }
+    {
       "Sid": "APIGatewayDeploy",
       "Effect": "Allow",
       "Action": [
