@@ -1,6 +1,4 @@
 terraform {
-  required_version = ">= 1.6.0"
-
   backend "s3" {
     bucket         = "serverless-power-tuning-tfstate"
     key            = "state/terraform.tfstate"
@@ -8,15 +6,13 @@ terraform {
     dynamodb_table = "serverless-power-tuning-tf-lock"
     encrypt        = true
   }
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
 }
 
 provider "aws" {
-  region = var.aws_region
+  region = var.aws_region # eu-west-2
+}
+
+provider "aws" {
+  alias  = "usw2"
+  region = "us-west-2"
 }

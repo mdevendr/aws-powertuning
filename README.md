@@ -1,35 +1,36 @@
+# Serverless Power Tuning Pattern — vFINAL (Production-Safe)
 
-# Serverless Power Tuning Pattern (API Gateway → Lambda → DynamoDB)
+This repo reuses existing AWS resources to avoid IAM/DynamoDB/SAR conflicts:
 
-This repo deploys a simple REST API backed by Lambda and DynamoDB and includes a GitHub Actions workflow that
-runs **AWS Lambda Power Tuning** (Step Functions), parses the recommended memory size, updates the Lambda configuration,
-and (optionally) runs Postman load tests via Newman.
+- **DynamoDB table:** `LambdaPowerTuningTable` (created by Terraform in this repo)
+- **Lambda Execution Role:** `arn:aws:iam::211125489043:role/serverless-power-tuning-lambda-role`
+- **AWS Lambda Power Tuning (Step Functions):** `arn:aws:states:eu-west-2:211125489043:stateMachine:aws-lambda-power-tuning`
 
-## What you get
-- Terraform IaC to create:
-  - DynamoDB table (`items`)
-  - Python Lambda (`app.lambda_handler`)
-  - REST API Gateway with `/items` (GET/POST) and `/items/{id}` (GET/DELETE)
-- GitHub Actions workflow:
-  - Builds and deploys Lambda (zip upload)
-  - Invokes the **aws-lambda-power-tuning** Step Functions state machine
-  - Picks the recommended memory size (balanced by default)
-  - Updates the Lambda memory
-  - (Optional) Runs Newman with your Postman collection
+It deploys:
+- A **Python 3.11 Lambda** (handler: `app.lambda_handler`)
+- A **REST API Gateway** (`/items`, `/items/{id}`) proxying to Lambda
+- **No IAM creation** in Terraform (we reuse the existing role)
+- Remote Terraform state via **S3 + DynamoDB**
 
 ## Prereqs
-- AWS account and credentials (OIDC or long‑lived secrets)
-- Terraform >= 1.6
-- An existing **AWS Lambda Power Tuning** state machine (from SAR) **or** let Terraform deploy it via the official template (toggle in variables).
-- GitHub OIDC role or AWS credentials set as repository secrets.
+- S3 bucket: `serverless-power-tuning-tfstate`
+- DynamoDB lock table: `serverless-power-tuning-tf-lock` (PAY_PER_REQUEST is fine)
+- IAM Role for Lambda execution: `arn:aws:iam::211125489043:role/serverless-power-tuning-lambda-role`
+  - Must allow CloudWatch Logs and DynamoDB access to `LambdaPowerTuningTable`
+- Step Functions state machine for Power Tuning: `arn:aws:states:eu-west-2:211125489043:stateMachine:aws-lambda-power-tuning`
 
-## Quick start
-1. Clone and edit `infra/terraform/terraform.tfvars` with your values.
-2. `cd infra/terraform && terraform init && terraform apply -auto-approve`
-3. Push to GitHub. The workflow `.github/workflows/power-tune.yml` can also be triggered using **Run workflow**.
-4. Check the Step Functions execution and logs. The workflow will update the function memory automatically.
+## Local deploy (optional)
+```bash
+cd infra/terraform
+terraform init -migrate-state
+# build lambda package
+( cd ../../lambda && chmod +x package.sh && ./package.sh )
+terraform apply -auto-approve
+```
 
+## GitHub Actions
+- **PR → main**: package + plan + tests (no deploy)
+- **Push to main**: deploy (only by @mdevendr), run power tuning, update Lambda memory, run Newman tests, upload HTML report.
 
-### Power Tuner deployment
-By default, Terraform **deploys** the official *aws-lambda-power-tuning* SAR app and exposes its State Machine ARN as `power_tuner_arn` output.  
-Set `deploy_power_tuner = false` in `terraform.tfvars` if you want to use an existing state machine and pass its ARN via a GitHub secret instead.
+## Variables
+- Change `infra/terraform/terraform.tfvars` if you need to point to a different role/table/tuner ARN.

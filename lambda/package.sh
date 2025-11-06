@@ -1,7 +1,13 @@
-
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
+
 cd "$(dirname "$0")"
+
 rm -f package.zip
-zip -r package.zip app.py requirements.txt >/dev/null
-echo "Created package.zip"
+python - << 'EOF'
+import zipfile
+with zipfile.ZipFile("package.zip", "w", zipfile.ZIP_DEFLATED) as z:
+    z.write("app.py")
+EOF
+
+echo "✅ Lambda packaged: lambda/package.zip"

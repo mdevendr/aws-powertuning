@@ -1,9 +1,9 @@
+data "aws_caller_identity" "current" {}
 
-
-
-
-# DynamoDB table
-resource "aws_dynamodb_table" "items" {
+########################################
+# DynamoDB Table
+########################################
+resource "aws_dynamodb_table" "table" {
   name         = var.table_name
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "id"
@@ -14,71 +14,85 @@ resource "aws_dynamodb_table" "items" {
   }
 }
 
-# IAM role for Lambda
-data "aws_iam_policy_document" "assume" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    principals {
-      type        = "Service"
-      identifiers = ["lambda.amazonaws.com"]
-    }
-  }
-}
+########################################
+# IAM Role for Lambda Execution
+########################################
+resource "aws_iam_role" "lambda_exec_role" {
+  name = "${var.project}-lambda-exec-role"
 
-resource "aws_iam_role" "lambda_role" {
-  name               = "${var.project}-lambda-role"
-  assume_role_policy = data.aws_iam_policy_document.assume.json
-}
-
-data "aws_iam_policy_document" "lambda_policy" {
-  statement {
-    effect = "Allow"
-    actions = [
-      "logs:CreateLogGroup",
-      "logs:CreateLogStream",
-      "logs:PutLogEvents"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect    = "Allow",
+        Principal = { Service = "lambda.amazonaws.com" },
+        Action    = "sts:AssumeRole"
+      }
     ]
-    resources = ["*"]
-  }
-
-  statement {
-    effect    = "Allow"
-    actions   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:DeleteItem", "dynamodb:Scan"]
-    resources = [aws_dynamodb_table.items.arn]
-  }
+  })
 }
 
-resource "aws_iam_policy" "lambda_policy" {
-  name   = "${var.project}-lambda-policy"
-  policy = data.aws_iam_policy_document.lambda_policy.json
+resource "aws_iam_policy" "lambda_exec_policy" {
+  name        = "${var.project}-lambda-exec-policy"
+  description = "Least privilege access to DynamoDB + CloudWatch Logs"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid    = "DynamoDBAccess",
+        Effect = "Allow",
+        Action = [
+          "dynamodb:PutItem",
+          "dynamodb:GetItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:Scan"
+        ],
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.table_name}"
+      },
+      {
+        Sid    = "CloudWatchLogs",
+        Effect = "Allow",
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_attach" {
-  role       = aws_iam_role.lambda_role.name
-  policy_arn = aws_iam_policy.lambda_policy.arn
+resource "aws_iam_role_policy_attachment" "lambda_exec_role_attach" {
+  role       = aws_iam_role.lambda_exec_role.name
+  policy_arn = aws_iam_policy.lambda_exec_policy.arn
 }
 
-# Package Lambda (expects ../lambda/package.zip created by CI/job or local script)
+########################################
+# Lambda Function
+########################################
 resource "aws_lambda_function" "api" {
   function_name = "${var.project}-function"
-  role          = aws_iam_role.lambda_role.arn
+  role          = aws_iam_role.lambda_exec_role.arn
   runtime       = "python3.11"
   handler       = "app.lambda_handler"
   filename      = var.lambda_zip_path
 
   environment {
     variables = {
-      TABLE_NAME = aws_dynamodb_table.items.name
+      TABLE_NAME = aws_dynamodb_table.table.name
     }
   }
 
-  depends_on = [aws_iam_role_policy_attachment.lambda_attach]
+  depends_on = [aws_iam_role_policy_attachment.lambda_exec_role_attach]
 }
 
-# API Gateway REST API
+########################################
+# API Gateway
+########################################
 resource "aws_api_gateway_rest_api" "api" {
-  name        = "${var.project}-api"
-  description = "REST API for ${var.project}"
+  name = "${var.project}-api"
 }
 
 resource "aws_api_gateway_resource" "items" {
@@ -87,13 +101,6 @@ resource "aws_api_gateway_resource" "items" {
   path_part   = "items"
 }
 
-resource "aws_api_gateway_resource" "item_id" {
-  rest_api_id = aws_api_gateway_rest_api.api.id
-  parent_id   = aws_api_gateway_resource.items.id
-  path_part   = "{id}"
-}
-
-# Methods
 resource "aws_api_gateway_method" "items_any" {
   rest_api_id   = aws_api_gateway_rest_api.api.id
   resource_id   = aws_api_gateway_resource.items.id
@@ -101,14 +108,6 @@ resource "aws_api_gateway_method" "items_any" {
   authorization = "NONE"
 }
 
-resource "aws_api_gateway_method" "item_id_any" {
-  rest_api_id   = aws_api_gateway_rest_api.api.id
-  resource_id   = aws_api_gateway_resource.item_id.id
-  http_method   = "ANY"
-  authorization = "NONE"
-}
-
-# Integrations with Lambda (proxy)
 resource "aws_api_gateway_integration" "items" {
   rest_api_id             = aws_api_gateway_rest_api.api.id
   resource_id             = aws_api_gateway_resource.items.id
@@ -118,34 +117,16 @@ resource "aws_api_gateway_integration" "items" {
   uri                     = aws_lambda_function.api.invoke_arn
 }
 
-resource "aws_api_gateway_integration" "item_id" {
-  rest_api_id             = aws_api_gateway_rest_api.api.id
-  resource_id             = aws_api_gateway_resource.item_id.id
-  http_method             = aws_api_gateway_method.item_id_any.http_method
-  type                    = "AWS_PROXY"
-  integration_http_method = "POST"
-  uri                     = aws_lambda_function.api.invoke_arn
-}
-
-# Lambda permission for API Gateway
 resource "aws_lambda_permission" "apigw" {
-  statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.api.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/*"
 }
 
-# Deployment + Stage
 resource "aws_api_gateway_deployment" "deploy" {
   rest_api_id = aws_api_gateway_rest_api.api.id
-  triggers = {
-    redeploy = sha1(jsonencode(aws_api_gateway_rest_api.api.body))
-  }
-  depends_on = [
-    aws_api_gateway_integration.items,
-    aws_api_gateway_integration.item_id
-  ]
+  depends_on  = [aws_api_gateway_integration.items]
 }
 
 resource "aws_api_gateway_stage" "prod" {
@@ -154,34 +135,25 @@ resource "aws_api_gateway_stage" "prod" {
   stage_name    = "prod"
 }
 
-output "api_url" {
-  value = aws_api_gateway_rest_api.api.execution_arn
+########################################
+# Reference Existing SAR Power Tuner (Manual Deploy)
+########################################
+
+resource "aws_lambda_permission" "allow_stepfn" {
+  statement_id  = "AllowExecution"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.api.function_name
+  principal     = "states.amazonaws.com"
+  source_arn    = "arn:aws:iam::211125489043:role/serverlessrepo-aws-lambda-power-tu-statemachineRole-pfjcKMucHEx0"
+  # the ARN will be replaced with a more dynamic reference in future updates after SAR implementation from this pipeline
+  # The SAR implementation will be replaced by a more robust and configurable automation in future updates
+  # for now, this is a manual step to link the Lambda function with the existing Power Tuner State Machine
 }
 
+
+########################################
+# Outputs
+########################################
 output "invoke_url" {
   value = "https://${aws_api_gateway_rest_api.api.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.prod.stage_name}"
-}
-
-output "lambda_name" {
-  value = aws_lambda_function.api.function_name
-}
-
-output "table_name" {
-  value = aws_dynamodb_table.items.name
-}
-
-
-# ---- Optional: Deploy AWS Lambda Power Tuning (SAR) ----
-# Creates a CloudFormation stack for the open-source app and outputs the StateMachineArn.
-resource "aws_serverlessapplicationrepository_cloudformation_stack" "power_tuner" {
-  count          = var.deploy_power_tuner ? 1 : 0
-  name           = "${var.project}-power-tuner"
-  application_id = "arn:aws:serverlessrepo:us-east-1:451282441545:applications/aws-lambda-power-tuning"
-  capabilities   = ["CAPABILITY_IAM"]
-  parameters     = {}
-}
-
-# Expose the State Machine ARN (either from SAR or left empty when not deployed)
-output "power_tuner_arn" {
-  value = var.deploy_power_tuner ? aws_serverlessapplicationrepository_cloudformation_stack.power_tuner[0].outputs.StateMachineArn : ""
 }

@@ -1,7 +1,6 @@
 {
   "info": {
     "name": "API Lambda DynamoDB",
-    "_postman_id": "placeholder",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -24,7 +23,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\"id\":\"test-{{timestamp}}\",\"name\":\"demo\"}"
+          "raw": "{\"id\":\"test-{{$timestamp}}\",\"name\":\"demo\"}"
         },
         "url": "{{apiBase}}/items"
       }
@@ -33,7 +32,7 @@
       "name": "Get Item",
       "request": {
         "method": "GET",
-        "url": "{{apiBase}}/items/test-{{timestamp}}"
+        "url": "{{apiBase}}/items/test-{{$timestamp}}"
       }
     }
   ]
