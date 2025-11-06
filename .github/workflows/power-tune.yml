@@ -168,13 +168,13 @@ jobs:
         run: |
           echo "Best memory determined = ${{ steps.tune.outputs.best }}"
           aws lambda update-function-configuration --function-name "${{ env.PROJECT }}-function" --memory-size "${{ steps.tune.outputs.best }}"
-
       - name: Run Newman smoke tests
         run: |
           npm install -g newman newman-reporter-html aws4
           mkdir -p reports
           newman run postman/collection.json \
             -e postman/env.json \
+            --require aws4 \
             --env-var apiBase="${{ env.invoke_url }}" \
             --env-var awsAccessKeyId="${{ env.AWS_ACCESS_KEY_ID }}" \
             --env-var awsSecretAccessKey="${{ env.AWS_SECRET_ACCESS_KEY }}" \
