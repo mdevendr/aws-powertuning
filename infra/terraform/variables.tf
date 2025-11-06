@@ -19,6 +19,5 @@ variable "lambda_zip_path" {
 }
 
 variable "power_tuner_arn" {
-  type    = string
-  default = "arn:aws:states:eu-west-2:211125489043:stateMachine:aws-lambda-power-tuning"
+  type = string
 }

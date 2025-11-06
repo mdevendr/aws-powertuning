@@ -144,7 +144,7 @@ resource "aws_lambda_permission" "allow_stepfn" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.api.function_name
   principal     = "states.amazonaws.com"
-  source_arn    = "arn:aws:iam::211125489043:role/serverlessrepo-aws-lambda-power-tu-statemachineRole-pfjcKMucHEx0"
+  source_arn    = "arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
   # the ARN will be replaced with a more dynamic reference in future updates after SAR implementation from this pipeline
   # The SAR implementation will be replaced by a more robust and configurable automation in future updates
   # for now, this is a manual step to link the Lambda function with the existing Power Tuner State Machine
@@ -156,4 +156,8 @@ resource "aws_lambda_permission" "allow_stepfn" {
 ########################################
 output "invoke_url" {
   value = "https://${aws_api_gateway_rest_api.api.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.prod.stage_name}"
+}
+
+output "power_tuner_arn" {
+  value = var.power_tuner_arn
 }
