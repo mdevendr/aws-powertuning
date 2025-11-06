@@ -9,7 +9,7 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 env:
   AWS_REGION: eu-west-2
@@ -65,10 +65,7 @@ jobs:
         working-directory: lambda
         run: |
           chmod +x package.sh
-                ./package.sh
-      - name: Show OIDC subject (sub)
-        run: echo "SUB = repo:${{ github.repository }}:ref:${{ github.ref }}"
-
+          ./package.sh
       - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
