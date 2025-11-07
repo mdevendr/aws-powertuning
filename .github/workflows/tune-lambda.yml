@@ -45,6 +45,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Debug OIDC Token (Show actual sub)
+        id: debug-oidc
+        run: |
+          set -e
+          TOKEN=$(curl -s "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}")
+          echo "RAW TOKEN: $TOKEN" > token.json
+
+          echo "Decoded Header:"
+          cat token.json | jq -r '.value' | cut -d "." -f1 | base64 -d | jq .
+
+          echo "Decoded Payload:"
+          cat token.json | jq -r '.value' | cut -d "." -f2 | base64 -d | jq .
 
       # ✅ MUST COME BEFORE ANY AWS CALLS
       - name: Configure AWS Credentials (OIDC)
