@@ -100,6 +100,21 @@ This pattern is valuable for:
 - `pwrt1.png`
 - `pwrt2.png`
 - `pwrt3.png`
+## 🧾 CI/CD Evidence Outputs (Automatically Generated)
+
+This solution does more than tune Lambda memory — it produces audit-ready artifacts to support
+architecture decisions, platform governance, and cost justification.
+
+| Artifact | Location | Used By | Purpose |
+|---|---|---|---|
+| `tuning-output.json` | `/reports/history/` | Architects / FinOps | Raw benchmark dataset for cost/performance validation |
+| `power-tuner-report.html` & `.md` | `/reports/history/` | Architecture Review | Visual comparison of memory vs execution time vs cost |
+| `512MB.pdf` & `1024MB.pdf` | `/reports/` | Performance & Product Teams | Real workload latency comparison (before/after memory tuning) |
+| `newman.html` & `newman.md` | `/reports/history/` | QA / Reliability Teams | API correctness & stability verification under load |
+| `memory-change-summary.md` | `/reports/history/` | Change Advisory Board / Platform CoE | Evidence-based approval for the recommended memory configuration |
+| Optional GitHub Approval Issue | GitHub Repo | Governance / Security | Provides traceable human approval before applying changes |
+
+✅ This ensures **data-driven decisions**, **governance compliance**, and **repeatability across teams**.
 
 ### Performance & Cost Metrics
 
