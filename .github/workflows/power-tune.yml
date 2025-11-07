@@ -215,39 +215,24 @@ jobs:
           echo "✅ Recommended memory: ${BEST} MB"
 
       # Generate report: HTML + PNG (from Step Functions visualization)
-      - name: Generate Power Tuner Report (HTML + PNG)
+      - name: Generate Power Tuner Report (HTML & PNG)
         run: |
           set -e
           mkdir -p reports
 
-          VIS_URL=$(jq -r '.stateMachine.visualization' tuning-output.json)
-          if [ -z "$VIS_URL" ] || [ "$VIS_URL" = "null" ]; then
-            echo "❌ No visualization URL found in tuning-output.json"
-            cat tuning-output.json
-            exit 1
-          fi
-          echo "📊 Visualization URL: $VIS_URL"
+          # Extract SVG directly from tuning-output.json
+          jq -r '.stateMachine.visualization' tuning-output.json > reports/power-tuner-report.svg
 
-          curl -s "$VIS_URL" -o reports/power-tuner-visualization.json
-          jq -r '.svg' reports/power-tuner-visualization.json > reports/power-tuner-report.svg
-
-          sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y librsvg2-bin
-
+          # Convert SVG → PNG
+          sudo apt-get update -y
+          sudo apt-get install -y librsvg2-bin
           rsvg-convert -f png -o reports/power-tuner-report.png reports/power-tuner-report.svg
 
-          cat > reports/power-tuner-report.html <<'HTML'
-          <html>
-            <head><meta charset="utf-8"><title>Power Tuner Report</title></head>
-            <body style="margin:0;padding:16px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
-              <h2>AWS Lambda Power Tuner Report</h2>
-              <p>This image is generated from the Step Functions visualization output.</p>
-              <img src="power-tuner-report.png" style="max-width:100%;border:1px solid #ddd;border-radius:6px"/>
-            </body>
-          </html>
-          HTML
+          # Create HTML wrapper for viewing
+          echo "<html><body><img src=\"power-tuner-report.png\" style=\"max-width:100%\"></body></html>" \
+            > reports/power-tuner-report.html
 
-          echo "✅ Power tuner report generated"
+          echo "✅ Power tuner report generated (SVG, PNG, HTML)"
 
       - name: Create Summary Report
         run: |
