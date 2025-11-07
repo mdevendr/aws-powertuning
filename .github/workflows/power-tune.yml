@@ -267,13 +267,20 @@ jobs:
             echo "| Metric | Value |"
             echo "|---|---:|"
             echo "| Execution duration (avg) | $(jq -r '.duration' tuning-output.json) ms |"
-            echo "| Estimated cost | $(jq -r '.cost' tuning-output.json) |"
+            echo "| Estimated cost per invocation | $(jq -r '.cost' tuning-output.json) |"
+            echo ""
+            echo "**Interactive Performance Visualization:**"
+            echo ""
+            echo "🔗 $(jq -r '.stateMachine.visualization' tuning-output.json)"
           } > reports/memory-change-summary.md
 
+          # Archive report history
           cp tuning-output.json reports/history/tuning-$ts.json
           cp reports/power-tuner-report.html reports/history/power-tuner-$ts.html
-          cp reports/power-tuner-report.png reports/history/power-tuner-$ts.png
+          cp reports/power-tuner-report.md reports/history/power-tuner-$ts.md
           cp reports/memory-change-summary.md reports/history/memory-summary-$ts.md
+
+          echo "✅ Summary and history stored"
 
       # Manual approval when ask_approval = true
       - name: Await Memory Update Approval
@@ -332,5 +339,6 @@ jobs:
             reports/newman.html
             reports/newman.md
             reports/power-tuner-report.html
-            reports/power-tuner-report.png
+            reports/power-tuner-report.md
+            reports/memory-change-summary.md
             reports/history/
