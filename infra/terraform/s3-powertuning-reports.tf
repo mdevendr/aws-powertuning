@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "tuning_reports" {
-  bucket = "${var.project}-tuning-reports"
+  bucket = "${var.project}-${var.aws_region}-reports"
   force_destroy = false
 }
 

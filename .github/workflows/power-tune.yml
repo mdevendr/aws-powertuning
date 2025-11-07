@@ -97,6 +97,7 @@ jobs:
           echo "REPORTS_BUCKET=$(terraform output -raw reports_bucket_name)" >> $GITHUB_ENV
           echo "POWER_TUNER_ARN=$(terraform output -raw power_tuner_arn)" >> $GITHUB_ENV
           echo "POWER_TUNER_REGION=$(terraform output -raw power_tuner_region)" >> $GITHUB_ENV
+          echo  s3://${{env.REPORTS_BUCKET}}/${{steps.summarize.outputs.ts}}
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
@@ -361,4 +362,4 @@ jobs:
             reports/history/
       - name: Upload reports to S3
         run: |
-          aws s3 cp reports/history/ s3://${{ env.REPORTS_BUCKET }}/${{ steps.summarize.outputs.ts }}/ --recursive
+          aws s3 cp reports/history/ s3://${{env.REPORTS_BUCKET}}/${{steps.summarize.outputs.ts}}/ --recursive
