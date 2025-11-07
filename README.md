@@ -133,21 +133,24 @@ This pattern is valuable for:
 ---
 
 ###  Evidence & Reports (Automatically Written to Git)
+## 📁 Reports & Evidence
 
-| Report | Location | Purpose |
-|---|---|---|
-| Raw Power Tuning Output | `reports/history/tuning-*.json` | Execution duration + cost by memory size |
-| Visualization Link (interactive) | `reports/power-tuner-report.md` | Shows cost/performance curve clearly |
-| Load Test (512 MB) | `reports/512MB.pdf` | Baseline performance |
-| Load Test (1024 MB) | `reports/1024MB.pdf` | Improved performance case |
-| Summary of Recommendation | `reports/memory-change-summary.md` | Decision justification |
-| CI Smoke Test Result | `reports/history/newman-*.html` | Verifies API still works post-change |
+All tuning + benchmark evidence is versioned inside the repository for traceability and auditability.
 
-### Example Power Tuning Visualizations
-(Already included in `reports/`)
-- `pwrt1.png`
-- `pwrt2.png`
-- `pwrt3.png`
+| Report | Description | Link |
+|-------|-------------|------|
+| **Power Tuning Raw Output (Latest)** | Full tuning execution result JSON | https://github.com/mdevendr/aws-powertuning/blob/main/reports/history/tuning-20251107-121253.json |
+| **Power Tuning Visualization (HTML)** | Interactive visualization of memory vs cost vs latency | https://github.com/mdevendr/aws-powertuning/blob/main/reports/history/power-tuner-20251107-121253.html |
+| **Power Tuning Visualization (Markdown)** | Text-friendly report for documentation | https://github.com/mdevendr/aws-powertuning/blob/main/reports/history/power-tuner-20251107-121253.md |
+| **Current Tuning Recommendation Summary** | Recommended configuration & justification | https://github.com/mdevendr/aws-powertuning/blob/main/reports/history/memory-summary-20251107-121253.md |
+| **Load Test (512MB)** | Baseline performance benchmark at 512MB | https://github.com/mdevendr/aws-powertuning/blob/main/reports/512MB.pdf |
+| **Load Test (1024MB)** | Optimized performance benchmark at 1024MB | https://github.com/mdevendr/aws-powertuning/blob/main/reports/1024MB.pdf |
+| **Post-Deploy Smoke Test Report (HTML)** | Newman run results to confirm API correctness | https://github.com/mdevendr/aws-powertuning/blob/main/reports/history/newman.html |
+| **Post-Deploy Smoke Test (Markdown)** | Text summary for documentation and auditing | https://github.com/mdevendr/aws-powertuning/blob/main/reports/history/newman.md |
+| **Power Tuner Result Snapshot #1** | Key performance comparison | https://github.com/mdevendr/aws-powertuning/blob/main/reports/pwrt1.PNG |
+| **Power Tuner Result Snapshot #2** | Key performance comparison | https://github.com/mdevendr/aws-powertuning/blob/main/reports/pwrt2.PNG |
+| **Power Tuner Result Snapshot #3** | Key performance comparison | https://github.com/mdevendr/aws-powertuning/blob/main/reports/pwrt3.PNG |
+
 
 ---
 
