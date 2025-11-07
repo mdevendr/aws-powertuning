@@ -153,9 +153,8 @@ jobs:
 
       - name: Generate Power Tuner Reports
         run: |
-          pip install aws-lambda-power-tuning
-          mkdir -p reports
-          power-tuning generate \
+          npx aws-lambda-power-tuning \
+            generate \
             --input-output-file tuning-output.json \
             --output-html reports/power-tuner-report.html \
             --output-png reports/power-tuner-report.png
