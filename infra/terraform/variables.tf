@@ -38,8 +38,8 @@ variable "enable_power_tuner_deploy" {
 }
 
 # Controls whether memory updates are auto-applied or require approval in CI
-variable "memory_update_mode" {
+variable "ask_approval" {
   description = "auto = update memory automatically, manual = require approval gate in CI"
-  type        = string
-  default     = "manual"
+  type        = bool
+  default     = true
 }
