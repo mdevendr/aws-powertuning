@@ -109,6 +109,6 @@ All artifacts are **commit-stored** → traceable, reviewable, repeatable.
 
 ---
 
-**Mahesh Devendran** • Cloud / Platform / Serverless Architect  
+**Mahesh Devendran** • Cloud Architect / Platform / Serverless  
 LinkedIn: https://www.linkedin.com/in/mahesh-devendran-83a3b214/
 
