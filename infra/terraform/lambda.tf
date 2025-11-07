@@ -33,5 +33,5 @@ resource "aws_lambda_permission" "allow_stepfn" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.api.function_name
   principal     = "states.amazonaws.com"
-  source_arn    = data.aws_sfn_state_machine.power_tuner.arn
+  source_arn    = aws_serverlessapplicationrepository_cloudformation_stack.power_tuner.outputs["StateMachineArn"]
 }
