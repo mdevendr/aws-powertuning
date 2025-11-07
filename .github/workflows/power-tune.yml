@@ -146,19 +146,26 @@ jobs:
           BEST=$(jq -r '.power' tuning-output.json)
           echo "best=$BEST" >> $GITHUB_OUTPUT
 
+      - name: Generate Power Tuner Report
+        uses: alexcasalboni/lambda-power-tuning-report@v1
+        with:
+          input: tuning-output.json
+          output: reports/power-tuner-report
+
+      - name: Await Approval Before Memory Change
+        if: ${{ env.MEMORY_UPDATE_MODE == 'manual' }}
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.token }}
+          approvers: ${{ env.DEPLOY_APPROVER }}
+          minimum-approvals: 1
+          issue-title: "Approve Lambda memory update to ${{ steps.tune.outputs.best }} MB"
+          issue-body: "Approve applying recommended memory to function: ${{ env.PROJECT }}-function."
+
       - name: Update Lambda Memory
         run: |
           echo "Updating Memory to ${{ steps.tune.outputs.best }}"
           aws lambda update-function-configuration --function-name "${{ env.PROJECT }}-function" --memory-size "${{ steps.tune.outputs.best }}"
-
-      - name: Generate Power Tuner Reports
-        run: |
-          npx aws-power-tuner -h
-          npx aws-lambda-power-tuning \
-            generate \
-            --input-output-file tuning-output.json \
-            --output-html reports/power-tuner-report.html \
-            --output-png reports/power-tuner-report.png
 
       - name: Create Summary Report
         run: |
