@@ -64,15 +64,23 @@ jobs:
         run: |
           sudo apt-get update -y
           sudo apt-get install -y jq zip
+
+      # STEP 1: Request OIDC token manually
       - name: Request OIDC Token
-        id: oidc
-        run: |
-          echo "Requesting token..."
-      - name: Configure AWS (OIDC)
+        id: oidc-token
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken("sts.amazonaws.com");
+            core.setOutput("id_token", token);
+
+      # STEP 2: Use token to assume AWS role
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.DEFAULT_REGION }}
+          web-identity-token: ${{ steps.oidc-token.outputs.id_token }}
 
       # Resolve inputs (prefer repository_dispatch payload; else workflow_dispatch inputs)
       - name: Resolve inputs
