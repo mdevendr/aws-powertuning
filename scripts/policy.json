@@ -86,6 +86,7 @@
         "lambda:TagResource",
         "lambda:AddPermission",
         "lambda:GetPolicy",
+        "lambda:GetFunctionConfiguration",
         "lambda:RemovePermission",
         "lambda:ListVersionsByFunction"
       ],
