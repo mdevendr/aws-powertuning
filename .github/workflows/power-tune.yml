@@ -153,6 +153,7 @@ jobs:
 
       - name: Generate Power Tuner Reports
         run: |
+          npx aws-power-tuner -h
           npx aws-lambda-power-tuning \
             generate \
             --input-output-file tuning-output.json \
