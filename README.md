@@ -40,10 +40,10 @@ This repository provides a **repeatable method** to:
 
 | Memory | Avg Duration | Cost per Invoke | Behavior | Outcome |
 |---:|---:|---:|---|---|
-| 128 MB | ~1900 ms | ~0.00000045 | CPU constrained, high latency | ❌ Avoid |
-| 256 MB | ~200–300 ms | ~0.00000016 | Best cost efficiency | ✅ Cheapest stable |
-| 512 MB | ~550–650 ms | ~0.00000048 | No benefit vs 256 MB; cost ↑ | ⚠️ Not ideal |
-| **1024 MB** | **~170–250 ms** | **~0.00000024** | Fastest & stable under load | ⭐ **Best Performance Profile** |
+| 128 MB | ~1900 ms | ~0.00000045 | CPU constrained, high latency |  Avoid |
+| 256 MB | ~200–300 ms | ~0.00000016 | Best cost efficiency |  Cheapest stable |
+| 512 MB | ~550–650 ms | ~0.00000048 | No benefit vs 256 MB; cost ↑ |  Not ideal |
+| **1024 MB** | **~170–250 ms** | **~0.00000024** | Fastest & stable under load |  **Best Performance Profile** |
 
 **Conclusion:**  
 For this workload, **1024 MB** offers the best **latency consistency + throughput** with **similar or lower total execution cost**.
@@ -54,8 +54,8 @@ For this workload, **1024 MB** offers the best **latency consistency + throughpu
 
 | Memory | Avg Latency | P90 | P95 | P99 | Errors | Result |
 |---:|---:|---:|---:|---:|---:|---|
-| 512 MB | ~140–160 ms | ~190 ms | ~220 ms | ~260+ ms | 0% | ⚠️ Latency drift under load |
-| **1024 MB** | **~70–90 ms** | **~90 ms** | **~105 ms** | **~160 ms** | **0%** | ✅ **Stable & scalable** |
+| 512 MB | ~140–160 ms | ~190 ms | ~220 ms | ~260+ ms | 0% |  Latency drift under load |
+| **1024 MB** | **~70–90 ms** | **~90 ms** | **~105 ms** | **~160 ms** | **0%** |  **Stable & scalable** |
 
 **What this proves:**  
 Performance tuning isn’t theoretical — latency differences **show up under real traffic**.
