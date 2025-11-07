@@ -62,6 +62,24 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
 
+      # tiny guard to ensure tooling used later is present
+      - name: Ensure required CLI tools
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y zip jq
+
+      - name: Request OIDC Token
+        id: oidc
+        run: |
+          echo "Requesting token..."
+
+      - uses: actions/github-script@v7
+        id: show-token
+        with:
+          script: |
+            const jwt = await core.getIDToken();
+            console.log(jwt);
+
       - name: Package Lambda
         working-directory: lambda
         run: |
@@ -85,26 +103,61 @@ jobs:
           terraform init -input=false -upgrade
           terraform apply -auto-approve -input=false
           echo "invoke_url=$(terraform output -raw invoke_url)" >> $GITHUB_ENV
+          echo "MEMORY_UPDATE_MODE=$(terraform output -raw memory_update_mode)" >> $GITHUB_ENV
 
       - name: Discover Lambda ARN
         id: lambda
         run: |
           ARN=$(aws lambda get-function --function-name "${{ env.PROJECT }}-function" --query 'Configuration.FunctionArn' --output text)
           echo "arn=$ARN" >> $GITHUB_OUTPUT
+          echo "LAMBDA_ARN=$ARN" >> $GITHUB_ENV
+          echo "Discovered Lambda ARN: $ARN"
+
+      # Resolve Power Tuner ARN dynamically (eu-west-2 → us-west-2 → fallback)
+      - name: Resolve Power Tuner ARN (prefer eu-west-2, fallback us-west-2)
+        id: resolve-tuner
+        run: |
+          set -e
+          find_tuner () {
+            REGION="$1"
+            aws stepfunctions list-state-machines --region "$REGION" --query "stateMachines[?contains(name, 'powerTuningStateMachine')].stateMachineArn" --output text
+          }
+
+          EU_TUNER=$(find_tuner "eu-west-2" || true)
+          if [ -n "$EU_TUNER" ]; then
+            echo "✅ Found tuner in eu-west-2: $EU_TUNER"
+            echo "POWER_TUNER_ARN=$EU_TUNER" >> $GITHUB_ENV
+            echo "POWER_TUNER_REGION=eu-west-2" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          US_TUNER=$(find_tuner "us-west-2" || true)
+          if [ -n "$US_TUNER" ]; then
+            echo "ℹ️ Using tuner in us-west-2: $US_TUNER"
+            echo "POWER_TUNER_ARN=$US_TUNER" >> $GITHUB_ENV
+            echo "POWER_TUNER_REGION=us-west-2" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          FALLBACK="arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
+          echo "⚠️ Could not discover tuner. Falling back to: $FALLBACK"
+          echo "POWER_TUNER_ARN=$FALLBACK" >> $GITHUB_ENV
+          echo "POWER_TUNER_REGION=us-west-2" >> $GITHUB_ENV
 
       - name: Run AWS Lambda Power Tuner
         id: tune
         env:
-          AWS_REGION: us-west-2
-          AWS_DEFAULT_REGION: us-west-2
-          POWER_TUNER_ARN: "arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
-          LAMBDA_ARN: "arn:aws:lambda:eu-west-2:211125489043:function:serverless-power-tuning-function"
+          POWER_TUNER_ARN: ${{ env.POWER_TUNER_ARN }}
+          POWER_TUNER_REGION: ${{ env.POWER_TUNER_REGION }}
+          LAMBDA_ARN: ${{ env.LAMBDA_ARN }}
         run: |
           set -e
+          echo "Using tuner ARN: $POWER_TUNER_ARN in $POWER_TUNER_REGION"
+          STRATEGY="balanced"
 
           INPUT=$(jq -n \
             --arg lambda "$LAMBDA_ARN" \
-            --arg strat "balanced" \
+            --arg strat "$STRATEGY" \
             '{
               lambdaARN:$lambda,
               powerValues:[128,256,512,1024],
@@ -115,7 +168,7 @@ jobs:
             }')
 
           EXE=$(aws stepfunctions start-execution \
-            --region "$AWS_REGION" \
+            --region "$POWER_TUNER_REGION" \
             --state-machine-arn "$POWER_TUNER_ARN" \
             --input "$INPUT" \
             --query executionArn \
@@ -125,7 +178,7 @@ jobs:
 
           while true; do
             STATUS=$(aws stepfunctions describe-execution \
-              --region "$AWS_REGION" \
+              --region "$POWER_TUNER_REGION" \
               --execution-arn "$EXE" \
               --query status \
               --output text)
@@ -137,57 +190,74 @@ jobs:
             sleep 8
           done
 
-          aws stepfunctions describe-execution \
-            --region "$AWS_REGION" \
+          OUT=$(aws stepfunctions describe-execution \
+            --region "$POWER_TUNER_REGION" \
             --execution-arn "$EXE" \
             --query output \
-            --output text > tuning-output.json
+            --output text)
 
+          echo "$OUT" > tuning-output.json
           BEST=$(jq -r '.power' tuning-output.json)
           echo "best=$BEST" >> $GITHUB_OUTPUT
+          echo "✅ Recommended memory: ${BEST} MB"
 
-      - name: Generate Power Tuner Report
+      # ✅ Generate Power Tuner report (no pip/npm)
+      - name: Ensure reports dir
+        run: mkdir -p reports
+
+      - name: Generate Power Tuner Report (HTML/PNG)
         uses: alexcasalboni/lambda-power-tuning-report@v1
         with:
           input: tuning-output.json
           output: reports/power-tuner-report
 
-      - name: Await Approval Before Memory Change
-        if: ${{ env.MEMORY_UPDATE_MODE == 'manual' }}
-        uses: trstringer/manual-approval@v1
-        with:
-          secret: ${{ github.token }}
-          approvers: ${{ env.DEPLOY_APPROVER }}
-          minimum-approvals: 1
-          issue-title: "Approve Lambda memory update to ${{ steps.tune.outputs.best }} MB"
-          issue-body: "Approve applying recommended memory to function: ${{ env.PROJECT }}-function."
-
-      - name: Update Lambda Memory
-        run: |
-          echo "Updating Memory to ${{ steps.tune.outputs.best }}"
-          aws lambda update-function-configuration --function-name "${{ env.PROJECT }}-function" --memory-size "${{ steps.tune.outputs.best }}"
-
       - name: Create Summary Report
         run: |
           mkdir -p reports/history
+          ts=$(date +%Y%m%d-%H%M%S)
+          BEST="${{ steps.tune.outputs.best }}"
           CURRENT=$(aws lambda get-function-configuration \
             --function-name "${{ env.PROJECT }}-function" \
-            --query MemorySize --output text)
-          BEST=${{ steps.tune.outputs.best }}
-          ts=$(date +%Y%m%d-%H%M%S)
+            --query MemorySize \
+            --output text)
 
-          echo "## Lambda Memory Tuning Summary" > reports/memory-change-summary.md
-          echo "" >> reports/memory-change-summary.md
-          echo "- Function: ${{ env.PROJECT }}-function" >> reports/memory-change-summary.md
-          echo "- Current Memory: ${CURRENT} MB" >> reports/memory-change-summary.md
-          echo "- Recommended: ${BEST} MB" >> reports/memory-change-summary.md
+          {
+            echo "## Lambda Power Tuning Summary"
+            echo ""
+            echo "**Function:** ${{ env.PROJECT }}-function"
+            echo "**Region:** ${{ env.AWS_REGION }}"
+            echo "**Current Memory:** ${CURRENT} MB"
+            echo "**Recommended Memory:** ${BEST} MB"
+            echo ""
+            if [ "$CURRENT" -eq "$BEST" ]; then
+              echo "✅ Lambda is already using the optimal memory setting."
+            else
+              echo "⚠️ Memory update pending approval or has been auto-applied depending on mode."
+            fi
+          } > reports/memory-change-summary.md
 
           cp tuning-output.json reports/history/tuning-$ts.json
           cp reports/power-tuner-report.html reports/history/power-tuner-$ts.html
           cp reports/power-tuner-report.png reports/history/power-tuner-$ts.png
           cp reports/memory-change-summary.md reports/history/memory-summary-$ts.md
 
-      - name: Run Newman Smoke Tests
+      # Manual approval before applying memory (respects MEMORY_UPDATE_MODE)
+      - name: Await Approval
+        if: ${{ env.MEMORY_UPDATE_MODE == 'manual' }}
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: mdevendr
+          minimum-approvals: 1
+          issue-title: "Approve Lambda memory update to ${{ steps.tune.outputs.best }} MB"
+          issue-body: "Apply recommended memory to ${{ env.PROJECT }}-function?"
+
+      - name: Update Lambda memory
+        run: |
+          echo "Best memory determined = ${{ steps.tune.outputs.best }}"
+          aws lambda update-function-configuration --function-name "${{ env.PROJECT }}-function" --memory-size "${{ steps.tune.outputs.best }}"
+
+      - name: Run Newman smoke tests
         run: |
           npm install -g newman newman-reporter-html
           mkdir -p reports
@@ -200,23 +270,36 @@ jobs:
             --reporters cli,html \
             --reporter-html-export reports/newman.html
 
-      - name: Commit Reports to Repo
+      - name: Convert HTML report to Markdown
         run: |
+          pip install html2text
+          html2text reports/newman.html > reports/newman.md
+          head -n 20 reports/newman.md || true
+
+      # ✅ Commit reports back to repo
+      - name: Commit reports back to repo
+        run: |
+          set -e
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add reports/history
-          git add reports/memory-change-summary.md || true
-          git commit -m "Add tuning + test reports" || echo "No changes"
-          git push || echo "No changes"
+          mkdir -p reports/history
+          ts=$(date +%Y%m%d-%H%M%S)
+          cp reports/newman.html reports/history/newman-$ts.html
+          cp reports/newman.md   reports/history/newman-$ts.md
+          # power tuner + summary already copied in Create Summary step
+          git add reports/history/*
+          git commit -m "Add tuning + smoke test reports ($ts)" || echo "No changes to commit"
+          git push || echo "No push needed"
 
-      - name: Upload Artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: tuning-and-tests
           path: |
             tuning-output.json
+            reports/newman.html
+            reports/newman.md
             reports/power-tuner-report.html
             reports/power-tuner-report.png
             reports/memory-change-summary.md
-            reports/newman.html
             reports/history/
