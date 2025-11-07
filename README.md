@@ -1,143 +1,127 @@
 # 🚀 Serverless Power Tuning & Cost Optimization on AWS
 
-This repository demonstrates a **production-ready pattern** for automatically evaluating and optimizing the **Lambda memory configuration** based on **performance vs cost trade-offs** — using:
+This repository demonstrates a **production-ready pattern** for evaluating and optimizing the **AWS Lambda memory configuration** using **real performance data**, not guesswork.
 
-- **AWS Lambda Power Tuning** (Step Functions)
-- **Terraform** for reproducible infrastructure
-- **GitHub Actions** with OIDC authentication (no stored IAM keys)
-- **Postman + Newman** for smoke + functional verification
-- **Optional Manual Approval** workflow for memory changes
+It combines:
+
+- **AWS Lambda Power Tuning** (Step Functions benchmarking state machine)
+- **Terraform** for repeatable, environment-consistent infrastructure
+- **GitHub Actions CI/CD** with *OIDC federation* (no stored IAM keys)
+- **Postman + Newman** for automated API functional verification
+- **Optional manual approval workflow** for controlled memory adjustments
+
+This solution is designed for **enterprise platform teams, FinOps programs, Cloud CoEs, and architects** who require **evidence-based resource tuning** with automated governance.
 
 ---
 
 ## 🎯 Business & Architecture Overview
 
-Lambda cost is directly influenced by **execution duration** and **configured memory**.  
-However, **more memory ≠ more cost** — because higher memory also allocates **more CPU**, often **reducing execution time significantly**.
+Lambda cost is influenced by two opposing factors:
 
-This repository provides:
+| More Memory → More CPU | More CPU → Faster Execution |
+|---|---|
+| Higher configured memory increases cost *per ms* | Faster execution reduces *total ms billed* |
+
+This means:
+> **More memory does not always mean more cost** — and often results in **lower latency at similar cost**.
+
+This repository **automates the discovery** of the optimal balance.
 
 | Capability | Benefit |
 |-----------|---------|
-| Automated performance benchmarking across multiple memory sizes | Identify the optimal configuration for your workload |
-| Visualization of performance + cost | Clear evidence for architectural decisions |
-| GitHub-based optional approval workflow | Governance & controlled rollout |
-| No shared credentials (OIDC) | Enterprise-grade security posture |
-| IaC (Terraform) | Repeatable across dev → staging → prod |
+| Automated performance benchmarking | Scientific, repeatable memory tuning |
+| Visual performance & cost comparison | Clear evidence for decision-makers |
+| Optional approver-based rollout | Fits enterprise change governance |
+| Zero long-lived IAM keys (OIDC) | Improves security posture |
+| Fully IaC-defined (Terraform) | Portable across environments |
 
 ---
+
+## 🧠 What Makes This Implementation Different
+
+Most Power Tuning demos *only* show how to run the state machine manually.
+
+This implementation goes **further**:
+
+| Feature | Typical Tutorials | This Implementation |
+|---|---|---|
+| Automated tuning workflow | ❌ No | ✅ Yes |
+| Load testing w/ Newman | ❌ No | ✅ Yes |
+| Branch-aware deployment controls | ❌ No | ✅ Yes |
+| Manual approval workflow (optional) | ❌ No | ✅ Yes |
+| Reports stored for audit / review | ❌ No | ✅ Yes |
+| OIDC IAM auth (no secrets) | ❌ Rare | ✅ Yes |
+| Terraform-managed API + Lambda stack | ⚠️ Sometimes | ✅ Always |
+
+This is a **repeatable tuning operating model**, not a one-off demo.
+
+---
+
+## 🔎 Key Optimization Result (Example)
+
+| Memory Setting | Avg Duration | Cost per Execution | Outcome |
+|---|---:|---:|---|
+| **512 MB** | Higher latency | Standard cost | ❗ Suboptimal |
+| **1024 MB** | **~40–55% faster** | ~Similar cost | ✅ Best performance / cost trade-off |
+
+> Increasing memory improved CPU → reduced execution time → final cost remained nearly the same.
+
+---
+
 ## 🧩 Architecture (High-Level)
 
-### A. Executive / Business Overview
-
-This solution implements a **self-optimising serverless application** that automatically evaluates and improves its own **performance, cost efficiency, and scalability**. It continuously measures how different Lambda memory configurations impact **latency, throughput, and total execution cost**, then identifies the **optimal configuration** for the workload.
-
-Depending on governance requirements, the system can either:
-- ✅ **Apply the recommended memory automatically**
-- 🔒 Require **manual approval** before adjusting the Lambda configuration
-
-#### Why This Matters
-
-| Business Outcome | Benefit |
-|---|---|
-| **Reduced Cloud Spend** | Prevents over-provisioning and eliminates tuning guesswork |
-| **Predictable Performance** | Ensures stable latency under real workloads |
-| **Operational Efficiency** | Removes manual intervention and tuning cycles |
-| **Governance-Ready** | Works with change management / CAB approval models |
-
-This pattern is valuable for:
-- FinOps / Cloud Cost Optimization programs
-- Serverless production workloads at scale
-- Organizations standardizing on **data-driven performance engineering**
 
 ---
 
-### B. Technical Architecture (For Architects & Engineers)
-
-      ┌───────────────────────┐
-      │       Client / CI     │
-      └──────────┬────────────┘
-                 │
-                 │ invoke_url
-                 ▼
-        ┌───────────────────────┐
-        │   Amazon API Gateway  │
-        └──────────┬────────────┘
-                   │  (AWS_PROXY Integration)
-                   ▼
-            ┌───────────────┐
-            │ AWS Lambda    │
-            │ (Application) │
-            └──────┬────────┘
-                   │ DynamoDB SDK (boto3)
-                   ▼
-         ┌───────────────────────┐
-         │ Amazon DynamoDB Table │
-         └───────────────────────┘
-
-
- ┌───────────────────────────────────────────────────────────────┐
- │                Performance Optimization Pipeline               │
- │                                                               │
- │  GitHub Actions (CI/CD)                                       │
- │       │                                                       │
- │       ▼                                                       │
- │  AWS Lambda Power Tuner (Step Functions State Machine)        │
- │       │  executes test invocations at multiple memory levels  │
- │       ▼                                                       │
- │  tuning-output.json                                           │
- │       │                                                       │
- │       ├─ Auto Mode → Lambda memory updated automatically      │
- │       └─ Manual Mode → GitHub Issue approval required         │
- └───────────────────────────────────────────────────────────────┘
-
----
-
-### Key AWS Services
+## ⚙️ Key AWS Services
 
 | Component | Purpose |
 |---|---|
-| **API Gateway** | Provides REST API interface (`/items`, `/items/{id}`) |
-| **Lambda (Application)** | CRUD logic + DynamoDB integration |
-| **DynamoDB** | Serverless storage with predictable performance |
-| **AWS Lambda Power Tuner (Step Functions)** | Executes benchmark tests across memory configs |
-| **GitHub Actions** | Automates deployment, testing, tuning, and approvals |
-| **Newman (Postman CLI)** | Validates API functionality post-deployment |
-| **IAM Roles / Policies** | Ensures least-privilege and secure execution |
+| **API Gateway** | REST interface (`/items`, `/items/{id}`) |
+| **Lambda** | Application logic & DynamoDB CRUD |
+| **DynamoDB** | Serverless low-latency database |
+| **Power Tuner (Step Functions)** | Executes controlled performance test loops |
+| **GitHub Actions + OIDC** | Deployment, testing, tuning, governance |
+| **Newman** | Automated API smoke tests |
 
 ---
 
-### 🔄 Memory Optimization Workflow
+## 🧪 Reports & Evidence (Included in Repo)
 
-1. Deploy infrastructure via Terraform  
-2. Power Tuner runs parallel Lambda executions across memory settings  
-3. System computes **cost vs performance trade-offs**
-4. Best memory configuration value is produced (e.g., `1024 MB`)
-5. Mode-driven update:
-   - **Auto:** Memory is updated automatically
-   - **Manual:** GitHub Issue is created → Reviewer responds **approve/deny**
-
----
-
-### 📁 Reports & Evidence (Automatically Generated)
-
-| Report Type | Location | Examples |
+| Report Type | Location | Purpose |
 |---|---|---|
-| **Power Tuning Visualization** | `reports/history/` | `power-tuner-*.png`, `.html` |
-| **Load Test Comparison** | `reports/` | `512MB.pdf`, `1024MB.pdf` |
-| **Raw Benchmark Output** | `reports/history/` | `tuning-*.json` |
-| **API Smoke Test Report** | `reports/history/` | `newman-*.html`, `newman-*.md` |
-| **Change Summary** | `reports/history/` | `memory-summary-*.md` |
+| Power Tuning Visuals | `reports/pwrt1.png`, `pwrt2.png`, `pwrt3.png` | Compare cost vs performance |
+| Load Test (512 MB) | `reports/512MB.pdf` | Baseline |
+| Load Test (1024 MB) | `reports/1024MB.pdf` | Optimized test |
+| Memory Change Summary | `reports/memory-change-summary.md` | Decision justification |
+| Full CI evidence history | `reports/history/` | Audit & review trail |
 
 ---
 
-### ✅ Design Principles Demonstrated
+## ✅ When to Use This Pattern
 
-- Serverless-first architecture
-- Automated performance & cost optimization
-- FinOps-friendly operational visibility
-- CI/CD-integrated governance and approvals
-- Repeatable + scalable pattern for enterprise workloads
+Use this pattern when:
+
+- You run **Lambda workloads at scale**
+- Performance and user latency matter
+- You need to **justify cloud costs with evidence**
+- Your org requires **governance for configuration changes**
 
 ---
+
+## 🏁 Key Takeaway
+
+> **More memory = more CPU → faster execution → same or lower total cost.**
+>
+> The *only reliable way* to find the best configuration is to **measure it**.
+
+This repository gives you the **measurement engine**, the **automation**, and the **approval controls** to do it **safely at scale**.
+
+---
+
+## 🌟 Developed By
+
+**Mahesh Devendran**  
+Cloud Architect • Serverless • FinOps • Platform Engineering  
+*(Feel free to connect or reach out on LinkedIn!)*
 
