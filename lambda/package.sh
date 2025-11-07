@@ -10,4 +10,4 @@ with zipfile.ZipFile("package.zip", "w", zipfile.ZIP_DEFLATED) as z:
     z.write("app.py")
 EOF
 
-echo "✅ Lambda packaged: lambda/package.zip"
+echo " Lambda packaged: lambda/package.zip"

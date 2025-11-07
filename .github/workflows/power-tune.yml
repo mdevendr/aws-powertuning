@@ -91,6 +91,12 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          
+      - name: Export variables 
+        run: |
+          echo "REPORTS_BUCKET=$(terraform output -raw reports_bucket_name)" >> $GITHUB_ENV
+          echo "POWER_TUNER_ARN=$(terraform output -raw power_tuner_state_machine_arn)" >> $GITHUB_ENV
+          echo "POWER_TUNER_REGION=$(terraform output -raw power_tuner_region)" >> $GITHUB_ENV
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
@@ -340,3 +346,6 @@ jobs:
             reports/power-tuner-report.md
             reports/memory-change-summary.md
             reports/history/
+      - name: Upload reports to S3
+        run: |
+          aws s3 cp reports/history/ s3://${{ env.REPORTS_BUCKET }}/${{ steps.summarize.outputs.ts }}/ --recursive

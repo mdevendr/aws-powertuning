@@ -43,3 +43,27 @@ variable "ask_approval" {
   type        = bool
   default     = true
 }
+
+variable "lambdaPowerValues" {
+  type  = string
+  default = "128,256,512,1024,1536,2048"
+}
+
+variable "power_tuner_application_id" {
+  type = string
+  default = "arn:aws:serverlessrepo:us-west-2:451282441545:applications/aws-lambda-power-tuning"
+}
+
+variable "semantic_version" {
+  type = string
+  default = "4.4.0"
+}
+variable "aws_powertuning_name" {
+  type = string
+  default = "powerTuningStateMachine"
+}
+
+variable "account_id" {
+  type = string
+  default = ""
+}
