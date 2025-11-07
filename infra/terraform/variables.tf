@@ -52,10 +52,6 @@ variable "semantic_version" {
   default = "4.4.0"
 }
 
-variable "account_id" {
-  type = string
-  default = ""
-}
 
 variable "github_oidc_role" {
   type = string

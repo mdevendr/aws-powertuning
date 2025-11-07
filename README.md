@@ -1,18 +1,23 @@
-# Serverless Performance & Cost Optimization (Production-Ready Pattern)
+## Automated Lambda Power Tuning & Cost Optimization (Production-Ready Pattern)
 
-A **repeatable, automated, and governed** approach to tuning AWS Lambda memory for the **best performance at the lowest effective cost** — validated using real traffic workloads and operationalized through CI/CD.
-
-This pattern moves Lambda tuning from **guesswork** → **data-driven continuous optimization**.
+This repository implements a **repeatable, evidence-driven optimization workflow** for AWS Lambda workloads.  
+It measures the performance and cost trade-offs of different memory configurations, validates real traffic behavior, and applies the optimal configuration automatically — with optional governance.
 
 ---
 
-##  What This Solves
+###  What This Delivers
+✔ Real power tuning via the AWS Lambda Power Tuning State Machine  
+✔ Real API performance validation via Postman + Newman  
+✔ Automated evidence report generation  
+✔ Optional approval workflow for memory change  
+✔ GitHub → AWS auth via **OIDC (no IAM keys stored)**  
+✔ Reports stored in **Amazon S3** for retention + audit  
 
-Most teams configure Lambda memory **once** and never revisit it.  
-But **workloads change**, traffic profiles change, and performance/cost curves shift.
-
+> This converts power tuning from a one-off experiment into a **scalable architecture practice**.
 > **More memory ≠ more cost**  
 > More memory → More CPU → Faster execution → Often **equal or lower cost**
+
+Most teams configure Lambda memory **once** and never revisit it. But **workloads change**, traffic profiles change, and performance/cost curves shift.
 
 This repository provides a **repeatable method** to:
 

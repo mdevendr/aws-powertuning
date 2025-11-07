@@ -4,7 +4,7 @@ This FAQ covers the *why*, *how*, and *governance considerations* behind the aut
 
 ---
 
-### **Q1. Why not just run AWS Lambda Power Tuning manually in the console?**
+###  Why not just run AWS Lambda Power Tuning manually in the console?
 
 Running the Power Tuning state machine manually gives you a result, but it is:
 - A **one-time experiment**
@@ -21,8 +21,7 @@ Running the Power Tuning state machine manually gives you a result, but it is:
 - Reports pushed to repo for audit & architecture review
 
 ---
-
-### **Q2. Why not just schedule the Power Tuner using a cron expression?**
+###  Why not just schedule the Power Tuner using a cron expression?
 
 A cron-triggered Power Tuner run:
 - Identifies the optimal memory **for that moment**
@@ -36,7 +35,7 @@ This automation validates, proves, documents, and (optionally) applies the tunin
 
 ---
 
-### **Q3. Who is this workflow intended for? Developers or Platform/Architecture teams?**
+###  Who is this workflow intended for? Developers or Platform/Architecture teams?
 
 This pattern is designed for:
 - **Platform Engineering**
@@ -54,7 +53,7 @@ It provides:
 
 ---
 
-### **Q4. Why does memory tuning matter if Lambda is “serverless” and “auto-scales”?**
+###  Why does memory tuning matter if Lambda is “serverless” and “auto-scales”?
 
 Because:
 - Lambda execution time = **actual billable cost**
@@ -67,7 +66,7 @@ This workflow proves & enforces this relationship using real data.
 
 ---
 
-### **Q5. Can this tuning pipeline break functionality?**
+###  Can this tuning pipeline break functionality?
 
 No — because it:
 1. **Runs load tests** before tuning.
@@ -78,7 +77,7 @@ If approval is **disabled**, the tuning change is still based on measured perfor
 
 ---
 
-### **Q6. Can this be reused for *other* Lambda architectures?**
+###  Can this be reused for *other* Lambda architectures?
 
 Yes — it was intentionally designed to be **plug-and-play**:
 
@@ -90,7 +89,7 @@ This enables **organization-wide standardization**.
 
 ---
 
-### **Q7. Where are the tuning and test results stored?**
+###  Where are the tuning and test results stored?
 
 They are:
 - Saved under `reports/history/<timestamp>/`
@@ -101,7 +100,7 @@ This creates **traceable and reviewable optimization evidence.**
 
 ---
 
-### **Q8. What is the “ask_approval” toggle used for?**
+###  What is the “ask_approval” toggle used for?
 
 | Mode | Behavior | Suitable For |
 |---|---|---|
@@ -110,7 +109,7 @@ This creates **traceable and reviewable optimization evidence.**
 
 ---
 
-### **Q9. Can this pipeline run periodically?**
+###  Can this pipeline run periodically?
 
 Yes — it can be triggered via:
 - `repository_dispatch`
@@ -121,7 +120,7 @@ This ensures tuning stays accurate as **traffic patterns and workloads evolve**.
 
 ---
 
-### **Q10. What business value does this provide?**
+###  What business value does this provide?
 
 | Business Impact | Description |
 |---|---|
@@ -131,7 +130,7 @@ This ensures tuning stays accurate as **traffic patterns and workloads evolve**.
 | Governance & Auditability | Reports automatically stored and traceable |
 | Platform Standardization | Can be applied across many workloads consistently |
 
-### **Q11. Why are reports stored in the Git repository, and is this suitable for production?**
+###  Why are reports stored in the Git repository, and is this suitable for production?
 
 Storing reports in Git is useful for:
 - Demonstrating traceability in simple environments
@@ -156,6 +155,90 @@ Instead, the recommended production pattern is:
 **Summary**
 - Git storage is acceptable for **demo / PoC / team-level adoption**
 - **S3-based storage is recommended for production**
+
+# ❓ FAQ — AWS Lambda Power Tuning Automation
+
+### What problem does this solve?
+Most teams configure Lambda memory once and never revisit it.  
+But workloads evolve, traffic patterns shift, and performance/cost profiles change.  
+This pipeline enables **continuous, data-driven right-sizing** instead of guesswork.
+
+---
+
+### Why automate power tuning instead of running it manually in the AWS console?
+| Manual Console Run | Automated Pipeline |
+|---|---|
+| One-off analysis | Repeatable & schedulable |
+| Decisions stored in screenshots | Decisions stored as evidence reports |
+| Easy to forget after release | Built into delivery workflow |
+| No governance / audit | Optional approval + versioned artifacts |
+| Requires console access | Works from CI with **zero IAM keys** (OIDC) |
+
+---
+
+### Why is **Newman load testing** included?
+Power tuning alone measures execution characteristics.  
+But **actual customer behavior** matters too.
+
+Newman validates:
+- How latency changes under real API traffic
+- Whether higher memory improves concurrency throughput
+- Whether performance benefits are meaningful for UX
+
+---
+
+### Why is the memory change **approval-based**?
+Enterprise environments commonly require:
+- CAB / Change Records
+- Peer review / dual-control
+- Non-production → production promotion steps
+
+The pipeline supports both:
+- `ask_approval = true` → **manual governance**
+- `ask_approval = false` → **self-optimizing Lambda**
+
+---
+
+### Why are reports stored in **Amazon S3** instead of Git?
+In real environments:
+- Git is not a storage system
+- Security policies restrict storing customer data in repos
+- S3 provides lifecycle policies, encryption, retention & IAM control
+
+This repo stores reports in Git **only for demonstration**.  
+For production, the pipeline pushes to **S3**.
+
+---
+
+### What role does Terraform play?
+Terraform ensures the infrastructure can be:
+- Version-controlled
+- Repeated identically across multiple environments
+- Audited, reviewed, and peer-approved
+
+---
+
+### Can this tuning workflow be applied to **other Lambdas / architectures**?
+Yes.  
+The tuning workflow is **decoupled** and accepts:
+- Lambda ARN
+- API invoke URL (optional)
+
+This makes it **plug-in** to any serverless workload:
+- Event-driven Lambdas
+- Step Functions orchestrations
+- Microservices with API Gateway
+- Streaming processors
+
+---
+
+### What business value does this deliver?
+- Faster customer experience
+- Predictable & explainable cloud costs
+- Architectural transparency
+- Repeatable FinOps practice
+
+This shifts tuning from art → **engineering discipline**.
 
 ---
 

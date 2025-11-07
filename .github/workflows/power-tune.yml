@@ -125,7 +125,7 @@ jobs:
           POWER_TUNER_REGION=$(terraform output -raw power_tuner_region 2>/dev/null | tr -d '\r' || true)
 
           if [ -z "$REPORTS_BUCKET" ]; then
-            echo "❌ Terraform did not return reports_bucket_name. Check outputs.tf."
+            echo " Terraform did not return reports_bucket_name. Check outputs.tf."
             exit 1
           fi
 
@@ -133,7 +133,7 @@ jobs:
           echo "POWER_TUNER_ARN=$POWER_TUNER_ARN" >> $GITHUB_ENV
           echo "POWER_TUNER_REGION=$POWER_TUNER_REGION" >> $GITHUB_ENV
 
-          echo "✅ Loaded Terraform outputs:"
+          echo " Loaded Terraform outputs:"
           echo "   REPORTS_BUCKET=$REPORTS_BUCKET"
           echo "   POWER_TUNER_ARN=$POWER_TUNER_ARN"
           echo "   POWER_TUNER_REGION=$POWER_TUNER_REGION"
@@ -323,7 +323,7 @@ jobs:
       - name: Exit if Denied
         if: ${{ steps.approval.outputs.approved != 'true' }}
         run: |
-          echo "❌ Memory update request was denied or timed out."
+          echo " Memory update request was denied or timed out."
           exit 0
 
       # Auto-apply when ask_approval = false

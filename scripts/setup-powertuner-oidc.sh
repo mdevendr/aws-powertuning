@@ -14,19 +14,19 @@ SAR_APP_ARN="arn:aws:serverlessrepo:us-west-2:451282441545:applications/aws-lamb
 
 OIDC_PROVIDER="token.actions.githubusercontent.com"
 
-echo "🔍 Checking OIDC Provider..."
+echo " Checking OIDC Provider..."
 aws iam get-open-id-connect-provider \
   --open-id-connect-provider-arn arn:aws:iam::$ACCOUNT_ID:oidc-provider/$OIDC_PROVIDER \
   >/dev/null 2>&1 || {
 
-  echo "⚙️ Creating OIDC Provider..."
+  echo " Creating OIDC Provider..."
   aws iam create-open-id-connect-provider \
     --url "https://token.actions.githubusercontent.com" \
     --client-id-list "sts.amazonaws.com" \
     --thumbprint-list "6938ef5d6138fbb87b3b0b1dd5d2efb0d282cc4a"
 }
 
-echo "📝 Creating trust policy file..."
+echo " Creating trust policy file..."
 cat > trust-policy.json <<EOF
 {
   "Version": "2012-10-17",
@@ -61,7 +61,8 @@ aws iam create-role \
   --role-name $ROLE_NAME \
   --policy-document file://trust-policy.json
 
-echo "🔗 Attaching IAM Policies..."
+echo " Attaching IAM Policies..."
+echo "NOTE: 👉 DO NOT OPEN PERMISSIONS - NOT RECOMMENDED, GO WITH LEAST PRIVILEGE BEST PRACTICE"
 cat > deployment-policy.json <<EOF
 {
   "Version": "2012-10-17",
@@ -91,7 +92,7 @@ aws iam put-role-policy \
   --policy-name deploy-permissions \
   --policy-document file://deployment-policy.json
 
-echo "🔐 Adding SAR Deployment Policy (App-level permission)..."
+echo " Adding SAR Deployment Policy (App-level permission)..."
 aws serverlessrepo put-application-policy \
   --application-id "$SAR_APP_ARN" \
   --statements "[
@@ -105,11 +106,11 @@ aws serverlessrepo put-application-policy \
 ROLE_ARN="arn:aws:iam::$ACCOUNT_ID:role/$ROLE_NAME"
 
 echo ""
-echo "✅ DONE — Your GitHub Actions Role is Ready!"
+echo " DONE — Your GitHub Actions Role is Ready!"
 echo ""
-echo "👉 Copy this into your GitHub Actions workflows:"
+echo " Copy this into your GitHub Actions workflows:"
 echo ""
 echo "      role-to-assume: $ROLE_ARN"
 echo "      aws-region: $REGION"
 echo ""
-echo "🎉 Setup Complete"
+echo " Setup Complete"
