@@ -142,7 +142,21 @@ All artifacts are **commit-stored** → traceable, reviewable, repeatable.
        └─────────────────────┘     └─────────────────────┘
 
 ---
+### 🏢 Production Deployment Note
 
+In this reference implementation, tuning reports and summaries are committed back to the Git repository (`/reports/history/`) to make results easy to browse and review.
+
+However, in **enterprise environments**, it is recommended to store tuning evidence in a **versioned and encrypted S3 bucket**, such as:
+
+Benefits:
+- Centralized visibility across teams
+- Enforced retention / lifecycle policies
+- Easy integration with **Athena**, **QuickSight**, **FinOps dashboards**, or **Snowflake ingestion**
+
+To switch to S3 storage:
+- Replace the `git add ...` step in CI with `aws s3 cp reports/... s3://.../<timestamp>/ --recursive`
+
+---
 ##  Final Takeaway
 
 > **We stop guessing. We start measuring.**
