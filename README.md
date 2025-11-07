@@ -23,7 +23,9 @@ But workloads **change** — and so does the **performance → cost relationship
 
 This repository provides a **repeatable, automated, auditable** way to prove and apply the *right* configuration.
 
-### Business Outcomes
+### Business & Architecture Overview
+Lambda cost is directly influenced by **execution duration** and **configured memory**.  
+However, **more memory ≠ more cost** — because higher memory also allocates **more CPU**, often **reducing execution time significantly**.
 
 | Outcome | Benefit |
 |---|---|
@@ -31,13 +33,6 @@ This repository provides a **repeatable, automated, auditable** way to prove and
 | **Better Customer Experience** | Lower latency and faster response times |
 | **Governance & Risk Control** | Memory changes require optional approval |
 | **Repeatability & Standardization** | One method that scales across teams and workloads |
-
----
-
-### Business & Architecture Overview
-
-Lambda cost is directly influenced by **execution duration** and **configured memory**.  
-However, **more memory ≠ more cost** — because higher memory also allocates **more CPU**, often **reducing execution time significantly**.
 
 This repository provides:
 
@@ -106,8 +101,23 @@ This pattern is valuable for:
 - `pwrt2.png`
 - `pwrt3.png`
 
----
+### Performance & Cost Metrics
 
+#### AWS Lambda Power Tuning Results
+| Memory (MB) | Avg Duration (ms) | Cost per Invoke (USD) | Observed Behavior | Outcome |
+|------------:|------------------:|----------------------:|------------------|---------|
+| 128         | ~1900 ms          | ~0.00000045           | CPU-starved; slow | ❌ Worst performance |
+| 256         | ~200–300 ms       | ~0.00000016           | Stable & efficient | ✅ Best Cost Efficiency |
+| 512         | ~550–650 ms       | ~0.00000048           | No performance gain; cost ↑ | ⚠️ Avoid |
+| 1024        | ~170–250 ms       | ~0.00000024           | Fastest & stable latency | ⭐ Best Performance |
+
+#### Postman Load Test Results (Real Workload Behavior)
+| Memory (MB) | Avg Response Time | P90 | P95 | P99 | Error Rate | Throughput | Outcome |
+|------------:|------------------:|----:|----:|----:|-----------:|-----------:|--------|
+| 512         | ~140–160 ms       | ~190 ms | ~220 ms | ~260+ ms | 0% | ~5–7 req/s | ⚠️ Latency variability under load |
+| 1024        | **~70–90 ms**     | **~90 ms** | **~105 ms** | **~160 ms** | **0%** | **Higher sustained throughput** | ✅ Faster & more stable |
+
+---
 ### Memory Optimization Workflow
 
 1. Deploy infrastructure via Terraform  
