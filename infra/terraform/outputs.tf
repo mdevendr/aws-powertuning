@@ -3,7 +3,7 @@ output "invoke_url" {
 }
 
 output "power_tuner_arn" {
-  value = value = data.aws_sfn_state_machine.power_tuner.arn
+  value  = data.aws_sfn_state_machine.power_tuner.arn
 }
 
 output "ask_approval" {
