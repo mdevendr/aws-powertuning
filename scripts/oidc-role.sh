@@ -31,10 +31,9 @@ cat > trust-policy.json <<EOF
   },
   "StringLike": {
     "token.actions.githubusercontent.com:sub": [
-      "repo:mdevendr/aws-powertuning:ref:refs/heads/*",
-      "repo:mdevendr/aws-powertuning:ref:refs/tags/*",
+      "repo:mdevendr/aws-powertuning:ref:refs/heads/main",
       "repo:mdevendr/aws-powertuning:pull_request",
-      "repo:mdevendr/aws-powertuning:*"
+      "repo:mdevendr/aws-powertuning:ref:refs/tags/*"
     ]
   }
 }

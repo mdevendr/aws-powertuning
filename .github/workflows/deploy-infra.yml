@@ -84,7 +84,31 @@ jobs:
         run: |
           chmod +x package.sh
           ./package.sh
+      - name: Debug OIDC Token (Show actual sub)
+        run: |
+          set -e
+          # Request an ID token directly
+          TOKEN=$(curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" | jq -r '.value')
 
+          curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com"
+          echo "🔹 Raw JWT:"
+          echo "$TOKEN" | sed 's/\./\n/g' | sed -n '1p;2p;3p' > split.txt
+
+          HEADER=$(sed -n '1p' split.txt | base64 --decode 2>/dev/null || true)
+          PAYLOAD=$(sed -n '2p' split.txt | base64 --decode 2>/dev/null || true)
+
+          echo ""
+          echo "🔹 Decoded Header:"
+          echo "$HEADER" | jq .
+
+          echo ""
+          echo "🔹 Decoded Payload:"
+          echo "$PAYLOAD" | jq .
+
+          echo ""
+          echo "👉 Copy the **sub** field from above and send it to me here."
       - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
