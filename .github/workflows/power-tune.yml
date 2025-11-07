@@ -201,28 +201,35 @@ jobs:
           echo "best=$BEST" >> $GITHUB_OUTPUT
           echo "✅ Recommended memory: ${BEST} MB"
 
-      # ✅ Generate Power Tuner report (no pip/npm)
-      - name: Ensure reports dir
-        run: mkdir -p reports
-
       - name: Generate Power Tuner Report (HTML + PNG)
         run: |
+          set -e
+
           mkdir -p reports
-          # Download visualization JSON
+
+          # Download visualization JSON from power tuning output
           VIS_URL=$(jq -r '.visualization' tuning-output.json)
+          if [ -z "$VIS_URL" ] || [ "$VIS_URL" = "null" ]; then
+            echo "❌ No visualization URL found in tuning-output.json"
+            cat tuning-output.json
+            exit 1
+          fi
           curl -s -o reports/power-tuner-visualization.json "$VIS_URL"
 
-          # Convert visualization JSON → SVG
+          # Extract SVG
           jq -r '.svg' reports/power-tuner-visualization.json > reports/power-tuner-report.svg
 
-          # Convert SVG → PNG + HTML
-          sudo apt-get install -y librsvg2-bin
+          # Install required tools (non-interactive, no prompts)
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y librsvg2-bin
+
+          # Convert SVG → PNG
           rsvg-convert -f png -o reports/power-tuner-report.png reports/power-tuner-report.svg
 
-          # Simple HTML wrapper
+          # Create HTML wrapper for web view
           echo "<html><body><img src=\"power-tuner-report.png\" style=\"max-width:100%\"></body></html>" > reports/power-tuner-report.html
 
-          echo "✅ Power tuner report generated"
+          echo "✅ Power tuner report generated successfully"
 
       - name: Create Summary Report
         run: |
