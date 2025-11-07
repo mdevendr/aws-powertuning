@@ -16,3 +16,7 @@ resource "aws_serverlessapplicationrepository_cloudformation_stack" "power_tuner
 }
 
 
+output "power_tuner_o" {
+  value  = aws_serverlessapplicationrepository_cloudformation_stack.power_tuner.outputs
+
+}
