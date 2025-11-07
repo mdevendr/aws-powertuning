@@ -215,24 +215,36 @@ jobs:
           echo "✅ Recommended memory: ${BEST} MB"
 
       # Generate report: HTML + PNG (from Step Functions visualization)
-      - name: Generate Power Tuner Report (HTML & PNG)
+      - name: Generate Power Tuner Report (HTML/Markdown-only)
         run: |
-          set -e
           mkdir -p reports
+          VIS_URL=$(jq -r '.stateMachine.visualization' tuning-output.json)
 
-          # Extract SVG directly from tuning-output.json
-          jq -r '.stateMachine.visualization' tuning-output.json > reports/power-tuner-report.svg
+          echo "🌐 Visualization URL: $VIS_URL"
 
-          # Convert SVG → PNG
-          sudo apt-get update -y
-          sudo apt-get install -y librsvg2-bin
-          rsvg-convert -f png -o reports/power-tuner-report.png reports/power-tuner-report.svg
+          # Create a clickable HTML report
+          cat <<EOF > reports/power-tuner-report.html
+          <html>
+          <body>
+          <h2>AWS Lambda Power Tuning Visualization</h2>
+          <p><a href="$VIS_URL" target="_blank">$VIS_URL</a></p>
+          <p><i>Open link for performance vs cost chart.</i></p>
+          </body>
+          </html>
+          EOF
 
-          # Create HTML wrapper for viewing
-          echo "<html><body><img src=\"power-tuner-report.png\" style=\"max-width:100%\"></body></html>" \
-            > reports/power-tuner-report.html
+          # Create Markdown version for repo and uploads
+          cat <<EOF > reports/power-tuner-report.md
+          ## AWS Lambda Power Tuning Visualization
 
-          echo "✅ Power tuner report generated (SVG, PNG, HTML)"
+          **Open the interactive tuning result:**
+
+          🔗 $VIS_URL
+
+          *(This interactive visualization shows cost vs. performance for each tested memory configuration.)*
+          EOF
+
+          echo "✅ Power Tuner report generated (HTML + Markdown)"
 
       - name: Create Summary Report
         run: |
