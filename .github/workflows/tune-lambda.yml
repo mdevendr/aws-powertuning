@@ -1,5 +1,8 @@
 name: Tune Lambda
-
+permissions:
+  id-token: write
+  contents: write
+  issues: write
 on:
   # Triggered automatically by deploy-infra via repository_dispatch
   repository_dispatch:

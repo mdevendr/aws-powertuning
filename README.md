@@ -41,16 +41,6 @@ This pattern includes:
 
 The tuning workflow is **fully decoupled** and can be **reused across any Lambda workload**.
 
-```mermaid
-flowchart LR
-A[Deploy Infrastructure] --> B[Run Power Tuning Benchmark]
-B --> C{Approval Required?}
-C -->|Yes| D[Manual Governance Review]
-C -->|No| E[Auto Apply Optimal Memory]
-D --> E
-E --> F[Post-Deploy Validation (Newman Tests)]
-F --> G[Publish Evidence Reports]
-
 ---
 
 ## 🌟 Developed By
