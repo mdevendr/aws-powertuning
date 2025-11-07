@@ -24,7 +24,10 @@ jobs:
         run: |
           echo "❌ Deployment blocked. Only $DEPLOY_APPROVER may deploy to main."
           exit 1
-
+      - name: Request OIDC Token
+        id: oidc
+        run: |
+          echo "Requesting token..."
       - name: Checkout repo
         uses: actions/checkout@v4
 
@@ -82,5 +85,5 @@ jobs:
             https://api.github.com/repos/${{ github.repository }}/dispatches \
             -d "{\"event_type\": \"lambda-tune\", \"client_payload\": {\"lambda_arn\": \"${lambda_arn}\", \"invoke_url\": \"${invoke_url}\"}}"
 
-      - name: ✅ Deployment Complete
+      - name: Deployment Complete
         run: echo "🚀 Infrastructure deployed & tuning workflow triggered."
