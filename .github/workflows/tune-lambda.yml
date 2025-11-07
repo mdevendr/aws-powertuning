@@ -1,9 +1,9 @@
 name: Tune Lambda
 permissions:
   id-token: write # ✅ required for OIDC federated auth
-  contents: read # ✅ required to access repo files
+  contents: write # ✅ required to access repo files
   issues: write # ✅ required for approval step (if enabled)
-  actions: read # ensures repository_dispatch inheritance works
+  actions: write # ensures repository_dispatch inheritance works
 
 on:
   repository_dispatch:
