@@ -3,7 +3,8 @@ output "invoke_url" {
 }
 
 output "power_tuner_arn" {
-  value  = aws_serverlessapplicationrepository_cloudformation_stack.power_tuner.outputs["StateMachineArn"][0]
+  value  = aws_serverlessapplicationrepository_cloudformation_stack.power_tuner.outputs["StateMachineArnValue"]
+
 }
 
 output "ask_approval" {
