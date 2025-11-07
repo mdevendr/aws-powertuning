@@ -3,7 +3,7 @@ output "invoke_url" {
 }
 
 output "power_tuner_arn" {
-  value = local.power_tuner_arn
+  value = value = data.aws_sfn_state_machine.power_tuner.arn
 }
 
 output "ask_approval" {
@@ -11,12 +11,7 @@ output "ask_approval" {
 }
 
 output "power_tuner_region" {
-  value = local.power_tuner_region
-}
-
-# Make the State Machine ARN available to workflows / outputs
-output "power_tuner_state_machine_arn" {
-  value = data.aws_sfn_state_machine.power_tuner.arn
+  value = var.power_tuner_region
 }
 
 output "reports_bucket_name" {
