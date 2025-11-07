@@ -33,10 +33,12 @@ on:
         default: "128,256,512,1024"
 
 env:
+  AWS_REGION: eu-west-2 # ✅ required for OIDC role assumption
+  AWS_DEFAULT_REGION: eu-west-2 # ✅ ensure CLI consistency
   PROJECT: serverless-power-tuning
-  DEFAULT_REGION: eu-west-2
-  POWERTUNER_FALLBACK_ARN: arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b
+  TABLE_NAME: LambdaPowerTuningTable
   DEPLOY_APPROVER: "mdevendr"
+  POWERTUNER_FALLBACK_ARN: arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b
 
 jobs:
   tune:
@@ -70,24 +72,21 @@ jobs:
 
           echo ""
           echo "👉 Copy the **sub** field from above and send it to me here."
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
       # ✅ MUST COME BEFORE ANY AWS CALLS
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-          aws-region: ${{ env.DEFAULT_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
           audience: sts.amazonaws.com
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Setup Node (for Newman)
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
 
       - name: Ensure CLI tools
         run: |
