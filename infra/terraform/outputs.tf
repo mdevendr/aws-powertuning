@@ -11,7 +11,7 @@ output "ask_approval" {
 }
 
 output "power_tuner_region" {
-  value = var.power_tuner_region
+  value = local.power_tuner_region
 }
 
 output "reports_bucket_name" {
