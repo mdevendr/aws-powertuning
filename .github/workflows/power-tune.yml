@@ -205,11 +205,24 @@ jobs:
       - name: Ensure reports dir
         run: mkdir -p reports
 
-      - name: Generate Power Tuner Report (HTML/PNG)
-        uses: alexcasalboni/lambda-power-tuning-report@v1
-        with:
-          input: tuning-output.json
-          output: reports/power-tuner-report
+      - name: Generate Power Tuner Report (HTML + PNG)
+        run: |
+          mkdir -p reports
+          # Download visualization JSON
+          VIS_URL=$(jq -r '.visualization' tuning-output.json)
+          curl -s -o reports/power-tuner-visualization.json "$VIS_URL"
+
+          # Convert visualization JSON → SVG
+          jq -r '.svg' reports/power-tuner-visualization.json > reports/power-tuner-report.svg
+
+          # Convert SVG → PNG + HTML
+          sudo apt-get install -y librsvg2-bin
+          rsvg-convert -f png -o reports/power-tuner-report.png reports/power-tuner-report.svg
+
+          # Simple HTML wrapper
+          echo "<html><body><img src=\"power-tuner-report.png\" style=\"max-width:100%\"></body></html>" > reports/power-tuner-report.html
+
+          echo "✅ Power tuner report generated"
 
       - name: Create Summary Report
         run: |
