@@ -73,7 +73,7 @@
               "",
               "let body = JSON.parse(pm.response.text());",
               "pm.environment.set(\"lastCreatedId\", body.id);",
-              "console.log(\"✅ Stored created ID:\", body.id);",
+              "console.log(\" Stored created ID:\", body.id);",
               "",
               "pm.test(\"Created ID stored\", function () {",
               "    pm.expect(body.id).to.exist;",

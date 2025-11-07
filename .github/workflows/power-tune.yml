@@ -153,9 +153,7 @@ jobs:
             exit 0
           fi
 
-          FALLBACK="arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
           echo " Could not discover tuner. Falling back to: $FALLBACK"
-          echo "POWER_TUNER_ARN=$FALLBACK" >> $GITHUB_ENV
           echo "POWER_TUNER_REGION=us-west-2" >> $GITHUB_ENV
 
       - name: Run AWS Lambda Power Tuner

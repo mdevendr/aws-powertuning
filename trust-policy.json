@@ -4,7 +4,7 @@
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::211125489043:oidc-provider/token.actions.githubusercontent.com"
+        "Federated": "arn:aws:iam::$ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
@@ -12,7 +12,7 @@
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:mdevendr/aws-serverless-design-patterns:*"
+          "token.actions.githubusercontent.com:sub": "repo:$ORGANIZATION/aws-serverless-design-patterns:*"
         }
       }
     }

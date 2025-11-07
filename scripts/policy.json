@@ -51,7 +51,7 @@
         "dynamodb:UpdateTable",
         "dynamodb:DescribeTable"
       ],
-      "Resource": "arn:aws:dynamodb:eu-west-2:211125489043:table/serverless-power-tuning-tf-lock"
+      "Resource": "arn:aws:dynamodb:eu-west-2:$ACCOUNT_ID:table/serverless-power-tuning-tf-lock"
     },
     {
       "Sid": "LambdaPowerTuning",
@@ -69,7 +69,7 @@
         "dynamodb:DeleteTable",
         "dynamodb:DescribeTable"
       ],
-      "Resource": "arn:aws:dynamodb:eu-west-2:211125489043:table/LambdaPowerTuningTable"
+      "Resource": "arn:aws:dynamodb:eu-west-2:$ACCOUNT_ID:table/LambdaPowerTuningTable"
     },
     {
       "Sid": "LambdaDeploy",
@@ -126,7 +126,7 @@
         "dynamodb:DeleteItem",
         "dynamodb:Scan"
       ],
-      "Resource": "arn:aws:dynamodb:eu-west-2:211125489043:table/LambdaPowerTuningTable"
+      "Resource": "arn:aws:dynamodb:eu-west-2:$ACCOUNT_ID:table/LambdaPowerTuningTable"
     }
   ]
 }

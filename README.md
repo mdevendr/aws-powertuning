@@ -1,4 +1,4 @@
-# Serverless Performance & Cost Optimization — Production-Ready Pattern
+## Serverless Performance & Cost Optimization — Production-Ready Pattern
 
 This repository demonstrates **how to measure, optimize, and continuously improve AWS Lambda performance and cost — using data, not assumptions.**
 
@@ -34,7 +34,7 @@ This repository provides a **repeatable, automated, auditable** way to prove and
 
 ---
 
-## Business & Architecture Overview
+### Business & Architecture Overview
 
 Lambda cost is directly influenced by **execution duration** and **configured memory**.  
 However, **more memory ≠ more cost** — because higher memory also allocates **more CPU**, often **reducing execution time significantly**.
@@ -50,9 +50,9 @@ This repository provides:
 | IaC (Terraform) | Repeatable across dev → staging → prod |
 
 ---
-## Architecture (High-Level)
+### Architecture (High-Level)
 
-### A. Executive / Business Overview
+#### A. Executive / Business Overview
 
 This solution implements a **self-optimising serverless application** that automatically evaluates and improves its own **performance, cost efficiency, and scalability**. It continuously measures how different Lambda memory configurations impact **latency, throughput, and total execution cost**, then identifies the **optimal configuration** for the workload.
 
@@ -88,7 +88,7 @@ This pattern is valuable for:
 | **Newman (Postman CLI)** | Validates API functionality post-deployment |
 | **IAM Roles / Policies** | Ensures least-privilege and secure execution |
 ---
-## 📊 Evidence & Reports (Automatically Written to Git)
+### Evidence & Reports (Automatically Written to Git)
 
 | Report | Location | Purpose |
 |---|---|---|
@@ -132,10 +132,7 @@ This pattern is valuable for:
 
 ---
 
-
----
-
-## 📊 Evidence & Reports (Automatically Written to Git)
+###  Evidence & Reports (Automatically Written to Git)
 
 | Report | Location | Purpose |
 |---|---|---|
@@ -154,7 +151,7 @@ This pattern is valuable for:
 
 ---
 
-## 🧪 How Memory Optimization is Performed
+###  How Memory Optimization is Performed
 
 This repository supports **three ways to tune memory**, depending on your maturity:
 
@@ -175,7 +172,7 @@ Use **Postman/Newman** to test real traffic patterns:
 | Memory | Avg Latency | Result |
 |---|---:|---|
 | **512 MB** | Higher latency | Baseline |
-| **1024 MB** | **~40–55% faster** | **Optimal for this workload** ✅ |
+| **1024 MB** | **~40–55% faster** | **Optimal for this workload**  |
 
 See included reports:  
 - `reports/512MB.pdf`  
@@ -202,7 +199,7 @@ See included reports:
 
 ---
 
-##  Key Takeaway
+###  Key Takeaway
 
 > **We stop guessing. We start measuring.**  
 > **This repository makes performance tuning repeatable, governed, and evidence-based.**
@@ -212,17 +209,7 @@ This is a **production-ready decision framework** for Serverless optimization.
 
 ---
 
-## Next Steps
-
-| If you want to… | Do this |
-|---|---|
-| Use this pattern in your org | Fork this repo & customize Lambda/package logic |
-| Apply to multiple services | Convert tuning workflow into a GitHub Action / reusable workflow |
-| Present to leadership | Use included PNG/HTML/MD evidence reports |
-
----
-
-## Credits & Author
+#### Credits & Author
 
 **Mahesh Devendran**  
 Cloud Architect • AWS • Serverless • FinOps  
