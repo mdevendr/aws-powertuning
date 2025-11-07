@@ -2,7 +2,6 @@ name: Tune Lambda
 
 on:
   # Triggered automatically by deploy-infra via repository_dispatch
-
   repository_dispatch:
     types: [lambda-tune]
 
@@ -49,9 +48,22 @@ jobs:
 
     steps:
       - name: Checkout
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
+        uses: actions/checkout@v4
+
+      - name: Setup Python (for any small tooling)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Node (for Newman)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Ensure CLI tools
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq zip
 
       # STEP 1: Request OIDC Token
       - name: Request OIDC Token
@@ -75,15 +87,6 @@ jobs:
           aws-region: ${{ env.DEFAULT_REGION }}
           web-identity-token-file: /tmp/web_identity_token
 
-      - name: Setup Node (for Newman)
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Ensure CLI tools
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y jq zip
       # Resolve inputs (prefer repository_dispatch payload; else workflow_dispatch inputs)
       - name: Resolve inputs
         id: inputs

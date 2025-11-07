@@ -1,121 +1,55 @@
-# 🚀 Serverless Power Tuning & Cost Optimization on AWS
+# Enterprise Serverless Cost & Performance Optimization Reference Pattern  
+*(AWS Lambda + FinOps + Automated Right-Sizing)*
 
-This repository demonstrates a **production-ready pattern** for evaluating and optimizing the **AWS Lambda memory configuration** using **real performance data**, not guesswork.
+Modern cloud platforms must balance **performance, cost efficiency, and operational governance**.  
+However, serverless workloads such as **AWS Lambda** are often sized **once** and left unchanged — even as **traffic, data volume, and business usage evolve**.
 
-It combines:
+This leads to two common enterprise challenges:
 
-- **AWS Lambda Power Tuning** (Step Functions benchmarking state machine)
-- **Terraform** for repeatable, environment-consistent infrastructure
-- **GitHub Actions CI/CD** with *OIDC federation* (no stored IAM keys)
-- **Postman + Newman** for automated API functional verification
-- **Optional manual approval workflow** for controlled memory adjustments
-
-This solution is designed for **enterprise platform teams, FinOps programs, Cloud CoEs, and architects** who require **evidence-based resource tuning** with automated governance.
-
----
-
-## 🎯 Business & Architecture Overview
-
-Lambda cost is influenced by two opposing factors:
-
-| More Memory → More CPU | More CPU → Faster Execution |
+| Challenge | Impact |
 |---|---|
-| Higher configured memory increases cost *per ms* | Faster execution reduces *total ms billed* |
+| **Guesswork-based memory sizing** | Unpredictable cost and inconsistent performance |
+| **Lack of repeatable tuning process** | Decisions depend on individuals, not data |
+| **No governance trail** | Changes are difficult to justify to Finance / CAB / Security |
 
-This means:
-> **More memory does not always mean more cost** — and often results in **lower latency at similar cost**.
-
-This repository **automates the discovery** of the optimal balance.
-
-| Capability | Benefit |
-|-----------|---------|
-| Automated performance benchmarking | Scientific, repeatable memory tuning |
-| Visual performance & cost comparison | Clear evidence for decision-makers |
-| Optional approver-based rollout | Fits enterprise change governance |
-| Zero long-lived IAM keys (OIDC) | Improves security posture |
-| Fully IaC-defined (Terraform) | Portable across environments |
+This reference pattern provides a **data-driven, repeatable, and governance-aligned** method to determine the **optimal Lambda memory configuration**, ensuring the **best cost-to-performance ratio** over time.
 
 ---
 
-## 🧠 What Makes This Implementation Different
+## 🎯 Architectural Intent & Business Value
 
-Most Power Tuning demos *only* show how to run the state machine manually.
-
-This implementation goes **further**:
-
-| Feature | Typical Tutorials | This Implementation |
-|---|---|---|
-| Automated tuning workflow | ❌ No | ✅ Yes |
-| Load testing w/ Newman | ❌ No | ✅ Yes |
-| Branch-aware deployment controls | ❌ No | ✅ Yes |
-| Manual approval workflow (optional) | ❌ No | ✅ Yes |
-| Reports stored for audit / review | ❌ No | ✅ Yes |
-| OIDC IAM auth (no secrets) | ❌ Rare | ✅ Yes |
-| Terraform-managed API + Lambda stack | ⚠️ Sometimes | ✅ Always |
-
-This is a **repeatable tuning operating model**, not a one-off demo.
-
----
-
-## 🔎 Key Optimization Result (Example)
-
-| Memory Setting | Avg Duration | Cost per Execution | Outcome |
-|---|---:|---:|---|
-| **512 MB** | Higher latency | Standard cost | ❗ Suboptimal |
-| **1024 MB** | **~40–55% faster** | ~Similar cost | ✅ Best performance / cost trade-off |
-
-> Increasing memory improved CPU → reduced execution time → final cost remained nearly the same.
-
----
-
-## 🧩 Architecture (High-Level)
-
-
----
-
-## ⚙️ Key AWS Services
-
-| Component | Purpose |
+| Objective | Outcome Delivered |
 |---|---|
-| **API Gateway** | REST interface (`/items`, `/items/{id}`) |
-| **Lambda** | Application logic & DynamoDB CRUD |
-| **DynamoDB** | Serverless low-latency database |
-| **Power Tuner (Step Functions)** | Executes controlled performance test loops |
-| **GitHub Actions + OIDC** | Deployment, testing, tuning, governance |
-| **Newman** | Automated API smoke tests |
+| Optimize runtime performance without increasing cost | Faster response times → improved user experience |
+| Eliminate cloud waste from over/under-provisioning | Predictable, transparent, measurable spend |
+| Align performance tuning with governance controls | Works with CAB, platform standards, FinOps reporting |
+| Ensure repeatability across teams and workloads | Can be adopted as a *platform pattern* (not a one-off fix) |
+
+This approach shifts organizations **from reactive tuning → to proactive, automated optimization**.
 
 ---
 
-## 🧪 Reports & Evidence (Included in Repo)
+## 🧩 Reference Pattern Overview
 
-| Report Type | Location | Purpose |
-|---|---|---|
-| Power Tuning Visuals | `reports/pwrt1.png`, `pwrt2.png`, `pwrt3.png` | Compare cost vs performance |
-| Load Test (512 MB) | `reports/512MB.pdf` | Baseline |
-| Load Test (1024 MB) | `reports/1024MB.pdf` | Optimized test |
-| Memory Change Summary | `reports/memory-change-summary.md` | Decision justification |
-| Full CI evidence history | `reports/history/` | Audit & review trail |
+This pattern includes:
 
----
+- **Infrastructure-as-Code (Terraform)** for Lambda, API Gateway, and DynamoDB.
+- **Automated memory benchmarking** using **AWS Lambda Power Tuning (Step Functions)**.
+- **Load & functional validation** using **Postman / Newman**.
+- **Optional approval workflow** (for regulated environments) via GitHub Actions.
+- **Evidence artifacts**: performance charts, cost comparison, tuning summary.
 
-## ✅ When to Use This Pattern
+The tuning workflow is **fully decoupled** and can be **reused across any Lambda workload**.
 
-Use this pattern when:
-
-- You run **Lambda workloads at scale**
-- Performance and user latency matter
-- You need to **justify cloud costs with evidence**
-- Your org requires **governance for configuration changes**
-
----
-
-## 🏁 Key Takeaway
-
-> **More memory = more CPU → faster execution → same or lower total cost.**
->
-> The *only reliable way* to find the best configuration is to **measure it**.
-
-This repository gives you the **measurement engine**, the **automation**, and the **approval controls** to do it **safely at scale**.
+```mermaid
+flowchart LR
+A[Deploy Infrastructure] --> B[Run Power Tuning Benchmark]
+B --> C{Approval Required?}
+C -->|Yes| D[Manual Governance Review]
+C -->|No| E[Auto Apply Optimal Memory]
+D --> E
+E --> F[Post-Deploy Validation (Newman Tests)]
+F --> G[Publish Evidence Reports]
 
 ---
 
