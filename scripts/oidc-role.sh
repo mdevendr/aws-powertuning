@@ -25,19 +25,29 @@ aws iam get-open-id-connect-provider \
 
 echo "✅ Creating trust policy..."
 cat > trust-policy.json <<EOF
-"Condition": {
-  "StringEquals": {
-    "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-  },
-  "StringLike": {
-    "token.actions.githubusercontent.com:sub": [
-      "repo:mdevendr/aws-powertuning:ref:refs/heads/main",
-      "repo:mdevendr/aws-powertuning:pull_request",
-      "repo:mdevendr/aws-powertuning:ref:refs/tags/*"
-    ]
-  }
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::211125489043:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": [
+            "repo:mdevendr/aws-powertuning:*",
+            "repo:*/aws-powertuning:*"
+          ]
+        },
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        }
+      }
+    }
+  ]
 }
-
 EOF
 
 echo "✅ Creating IAM role: $ROLE_NAME ..."

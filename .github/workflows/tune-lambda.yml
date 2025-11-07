@@ -1,5 +1,8 @@
 name: Tune Lambda
-
+permissions:
+  id-token: write
+  contents: write
+  issues: write
 on:
   repository_dispatch:
     types: [lambda-tune]
@@ -26,11 +29,6 @@ on:
         description: "Comma-separated memory values"
         required: false
         default: "128,256,512,1024"
-
-permissions:
-  id-token: write
-  contents: write
-  issues: write
 
 env:
   PROJECT: serverless-power-tuning
