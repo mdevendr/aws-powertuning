@@ -116,12 +116,27 @@ jobs:
             echo " Terraform output 'ask_approval' not found; defaulting ASK_APPROVAL=true"
           fi
 
-      - name: Export variables 
+      - name: Export Terraform Outputs
         run: |
-          echo "REPORTS_BUCKET=$(terraform output -raw reports_bucket_name)" >> $GITHUB_ENV
-          echo "POWER_TUNER_ARN=$(terraform output -raw power_tuner_arn)" >> $GITHUB_ENV
-          echo "POWER_TUNER_REGION=$(terraform output -raw power_tuner_region)" >> $GITHUB_ENV
-          echo "$(terraform output)"
+          # Force clean non-interactive output
+          REPORTS_BUCKET=$(terraform output -raw reports_bucket_name 2>/dev/null | tr -d '\r' || true)
+          POWER_TUNER_ARN=$(terraform output -raw power_tuner_arn 2>/dev/null | tr -d '\r' || true)
+          POWER_TUNER_REGION=$(terraform output -raw power_tuner_region 2>/dev/null | tr -d '\r' || true)
+
+          if [ -z "$REPORTS_BUCKET" ]; then
+            echo "❌ Terraform did not return reports_bucket_name. Check outputs.tf."
+            exit 1
+          fi
+
+          echo "REPORTS_BUCKET=$REPORTS_BUCKET" >> $GITHUB_ENV
+          echo "POWER_TUNER_ARN=$POWER_TUNER_ARN" >> $GITHUB_ENV
+          echo "POWER_TUNER_REGION=$POWER_TUNER_REGION" >> $GITHUB_ENV
+
+          echo "✅ Loaded Terraform outputs:"
+          echo "   REPORTS_BUCKET=$REPORTS_BUCKET"
+          echo "   POWER_TUNER_ARN=$POWER_TUNER_ARN"
+          echo "   POWER_TUNER_REGION=$POWER_TUNER_REGION"
+
       - name: Discover Lambda ARN
         id: lambda
         run: |
