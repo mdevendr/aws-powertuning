@@ -1,8 +1,5 @@
 name: Tune Lambda
-permissions:
-  id-token: write
-  contents: write
-  issues: write
+
 on:
   # Triggered automatically by deploy-infra via repository_dispatch
   repository_dispatch:
@@ -50,6 +47,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -68,27 +70,7 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y jq zip
 
-      # STEP 1: Request OIDC Token
-      - name: Request OIDC Token
-        id: oidc-token
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const token = await core.getIDToken("sts.amazonaws.com");
-            core.setOutput("id_token", token);
-
-      # STEP 2: Store token in a file
-      - name: Write token to file
-        run: |
-          echo "${{ steps.oidc-token.outputs.id_token }}" > /tmp/web_identity_token
-
       # STEP 3: Assume role with token (correct input)
-      - name: Configure AWS Credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-          aws-region: ${{ env.DEFAULT_REGION }}
-          web-identity-token-file: /tmp/web_identity_token
 
       # Resolve inputs (prefer repository_dispatch payload; else workflow_dispatch inputs)
       - name: Resolve inputs
