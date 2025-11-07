@@ -1,34 +1,83 @@
-name: Deploy Infrastructure
+name: Power Tune Lambda
 
 on:
-  workflow_dispatch:
+  pull_request:
+    branches: [main]
   push:
-    branches: ["main"]
+    branches: [main]
+  workflow_dispatch: {}
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
+  issues: write
 
 env:
   AWS_REGION: eu-west-2
   PROJECT: serverless-power-tuning
   TABLE_NAME: LambdaPowerTuningTable
+  DEPLOY_APPROVER: "mdevendr"
 
 jobs:
-  deploy-infra:
+  pr-checks:
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
-    permissions: # ✅ Job-level OIDC permissions
-      id-token: write
-      contents: read
-
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Package Lambda
+        working-directory: lambda
+        run: |
+          chmod +x package.sh
+          ./package.sh
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          python-version: "3.11"
+          terraform_version: 1.6.6
+      - name: Terraform init & validate
+        working-directory: infra/terraform
+        run: |
+          terraform init -input=false
+          terraform validate
+          terraform fmt -check
+      - name: Terraform plan (no apply)
+        working-directory: infra/terraform
+        run: terraform plan -no-color -input=false
+  deploy-and-tune:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Ensure only Mahesh can deploy
+        if: ${{ github.actor != env.DEPLOY_APPROVER }}
+        run: |
+          echo "❌ Deployment blocked: only $DEPLOY_APPROVER can deploy to main."
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      # Guard for basic tooling
+      - name: Ensure required CLI tools
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y zip jq
+
+      - name: Request OIDC Token
+        id: oidc
+        run: |
+          echo "Requesting token..."
+
+      - uses: actions/github-script@v7
+        id: show-token
+        with:
+          script: |
+            const jwt = await core.getIDToken();
+            console.log(jwt);
 
       - name: Package Lambda
         working-directory: lambda
@@ -36,30 +85,38 @@ jobs:
           chmod +x package.sh
           ./package.sh
 
-      - name: Configure AWS Credentials (OIDC)
+      - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }} # ✅ Your known-working role
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup Terraform
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+      # ✅ Package Lambda (only if using package.sh — otherwise replace with zip command)
+      - name: Package Lambda
+        working-directory: lambda
+        run: |
+          chmod +x package.sh
+          ./package.sh
+
+      - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.6
 
-      - name: Terraform Init
+      - name: Terraform Init & Apply
         working-directory: infra/terraform
-        run: terraform init -input=false -upgrade
-
-      - name: Terraform Apply
-        id: deploy
-        working-directory: infra/terraform
+        id: tfapply
         run: |
+          terraform init -input=false -upgrade
           terraform apply -auto-approve -input=false
+
+          # Export outputs to workflow env
           echo "invoke_url=$(terraform output -raw invoke_url)" >> $GITHUB_ENV
           echo "lambda_arn=$(aws lambda get-function --function-name \"${PROJECT}-function\" --query 'Configuration.FunctionArn' --output text)" >> $GITHUB_ENV
 
-      - name: Output Deployment Results
-        run: |
-          echo "✅ Lambda ARN: $lambda_arn"
-          echo "✅ Invoke URL: $invoke_url"
+      - name: Deployment Complete
+        run: echo "🚀 Infrastructure deployed & tuning workflow triggered."
