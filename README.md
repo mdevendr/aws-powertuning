@@ -6,7 +6,7 @@ This pattern moves Lambda tuning from **guesswork** → **data-driven continuous
 
 ---
 
-## 1) What This Solves
+##  What This Solves
 
 Most teams configure Lambda memory **once** and never revisit it.  
 But **workloads change**, traffic profiles change, and performance/cost curves shift.
@@ -24,7 +24,7 @@ This repository provides a **repeatable method** to:
 
 ---
 
-## 2) Architecture (High-Level)
+##  Architecture (High-Level)
 
 
 ### Key Architectural Characteristics
@@ -36,7 +36,7 @@ This repository provides a **repeatable method** to:
 
 ---
 
-## 3) Performance & Cost Observations (AWS Lambda Power Tuning)
+##  Performance & Cost Observations (AWS Lambda Power Tuning)
 
 | Memory | Avg Duration | Cost per Invoke | Behavior | Outcome |
 |---:|---:|---:|---|---|
@@ -50,7 +50,7 @@ For this workload, **1024 MB** offers the best **latency consistency + throughpu
 
 ---
 
-## 4) Real Workload Behavior (Postman Load Testing — “Elbow Method”)
+##  Real Workload Behavior (Postman Load Testing — “Elbow Method”)
 
 | Memory | Avg Latency | P90 | P95 | P99 | Errors | Result |
 |---:|---:|---:|---:|---:|---:|---|
@@ -62,7 +62,7 @@ Performance tuning isn’t theoretical — latency differences **show up under r
 
 ---
 
-## 5) Automation (CI/CD) — Making Optimization Repeatable
+##  Automation (CI/CD) — Making Optimization Repeatable
 
 The pipeline automatically:
 
@@ -87,7 +87,7 @@ The pipeline automatically:
 
 ---
 
-## 6) Evidence & Reports (Versioned in Repo)
+##  Evidence & Reports (Versioned in Repo)
 
 | Report | Description | Link |
 |---|---|---|
@@ -101,7 +101,7 @@ All artifacts are **commit-stored** → traceable, reviewable, repeatable.
 
 ---
 
-## 7) Final Takeaway
+##  Final Takeaway
 
 > **We stop guessing. We start measuring.**
 >
