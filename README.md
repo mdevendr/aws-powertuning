@@ -2,6 +2,7 @@
 
 This repository implements a **repeatable, evidence-driven optimization workflow** for AWS Lambda workloads.  
 It measures the performance and cost trade-offs of different memory configurations, validates real traffic behavior, and applies the optimal configuration automatically — with optional governance.
+<img width="2661" height="1404" alt="Lambda Auto Power Tuner (3)" src="https://github.com/user-attachments/assets/f957bd24-3835-43c3-895a-1c3e1d4d0fc3" />
 
 ---
 
@@ -113,47 +114,6 @@ The reports are stored in git for showcasing
 
 All artifacts are **commit-stored** → traceable, reviewable, repeatable.
 
-                   ┌─────────────────────────────────────────┐
-                   │ Platform Engineer / Cloud CoE           │
-                   │ / Architecture Owner approves & merges  │
-                   └─────────────┬───────────────────────────┘  
-                                 │ Push / Merge
-                                 ▼
-                     ┌──────────────────────────┐
-                     │    GitHub Actions CI     │
-                     └───────┬────────┬─────────┘
-                             │        │
-                             │        │ Deploy Infra (Terraform)
-                             │        ▼
-                             │   ┌──────────────────────┐
-                             │   │ API Gateway + Lambda │
-                             │   │ + DynamoDB           │
-                             │   └─────────┬────────────┘
-                             │             │
-                             │             │ Invoke for Tests
-                             │             ▼
-                             │   ┌──────────────────────┐
-                             │   │ Load Testing (Newman)│
-                             │   └─────────┬────────────┘
-                             │             │ Observed Metrics
-                             │             ▼
-                             │   ┌──────────────────────┐
-                             │   │ Lambda Power Tuner   │
-                             │   │ (Step Functions)     │
-                             │   └─────────┬────────────┘
-                             │             │ Tuning Output
-                             │             ▼
-                             │   ┌──────────────────────┐
-                             │   │ Report Generator     │
-                             │   │ (HTML / PNG / MD)    │
-                             │   └─────────┬────────────┘
-                             │             │
-               If Approval Required        │ If Auto Mode
-                     ▼                     ▼
-       ┌─────────────────────┐     ┌──────────────────────┐
-       │ GitHub Approval     │     │ Update Lambda Memory │
-       │ Issue-Based Review  │     │ Automatically        │
-       └─────────────────────┘     └──────────────────────┘
 
 ---
 ###  Production Deployment Note
