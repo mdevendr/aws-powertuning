@@ -10,6 +10,8 @@ on:
 permissions:
   id-token: write
   contents: write
+  issues: write # <-- Add this
+  actions: write
 
 env:
   AWS_REGION: eu-west-2
@@ -208,7 +210,7 @@ jobs:
         if: ${{ steps.tune.outputs.best != '' }}
         uses: trstringer/manual-approval@v1
         with:
-          secret: ${{ github.token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           approvers: ${{ env.DEPLOY_APPROVER }}
           minimum-approvals: 1
           issue-title: "Approve Lambda memory update to ${{ steps.tune.outputs.best }} MB"
