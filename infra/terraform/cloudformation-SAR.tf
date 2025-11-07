@@ -15,8 +15,3 @@ resource "aws_serverlessapplicationrepository_cloudformation_stack" "power_tuner
   capabilities = ["CAPABILITY_IAM"]
 }
 
-
-output "power_tuner_o" {
-  value  = aws_serverlessapplicationrepository_cloudformation_stack.power_tuner.outputs
-
-}
