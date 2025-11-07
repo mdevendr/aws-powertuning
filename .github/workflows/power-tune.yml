@@ -92,13 +92,6 @@ jobs:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
           
-      - name: Export variables 
-        run: |
-          echo "REPORTS_BUCKET=$(terraform output -raw reports_bucket_name)" >> $GITHUB_ENV
-          echo "POWER_TUNER_ARN=$(terraform output -raw power_tuner_arn)" >> $GITHUB_ENV
-          echo "POWER_TUNER_REGION=$(terraform output -raw power_tuner_region)" >> $GITHUB_ENV
-          echo  s3://${{env.REPORTS_BUCKET}}/${{steps.summarize.outputs.ts}}
-
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -122,6 +115,13 @@ jobs:
             echo "ASK_APPROVAL=true" >> $GITHUB_ENV
             echo " Terraform output 'ask_approval' not found; defaulting ASK_APPROVAL=true"
           fi
+
+      - name: Export variables 
+        run: |
+          echo "REPORTS_BUCKET=$(terraform output -raw reports_bucket_name)" >> $GITHUB_ENV
+          echo "POWER_TUNER_ARN=$(terraform output -raw power_tuner_arn)" >> $GITHUB_ENV
+          echo "POWER_TUNER_REGION=$(terraform output -raw power_tuner_region)" >> $GITHUB_ENV
+          echo  s3://${{env.REPORTS_BUCKET}}/${{steps.summarize.outputs.ts}}
 
       - name: Discover Lambda ARN
         id: lambda
@@ -364,3 +364,4 @@ jobs:
         id: upload
         run: |
           aws s3 cp reports/history/ s3://${{env.REPORTS_BUCKET}}/${{steps.summarize.outputs.ts}}/ --recursive
+  
