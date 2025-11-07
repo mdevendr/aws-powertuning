@@ -20,10 +20,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "encryption" {
   }
 }
 
-output "reports_bucket_name" {
-  value = aws_s3_bucket.tuning_reports.bucket
-}
-
 resource "aws_iam_policy" "report_writer" {
   name        = "${var.project}-report-writer"
   description = "Allows GitHub CI to upload tuning reports to S3"
@@ -41,6 +37,6 @@ resource "aws_iam_policy" "report_writer" {
 }
 
 resource "aws_iam_role_policy_attachment" "attach_report_writer" {
-  role       = aws_iam_role.github_oidc_role.name
+  role       = var.github_oidc_role
   policy_arn = aws_iam_policy.report_writer.arn
 }

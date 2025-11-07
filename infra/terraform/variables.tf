@@ -22,13 +22,6 @@ variable "lambda_zip_path" {
   default     = "lambda.zip"
 }
 
-# If you already have a Power Tuner, you can pass its ARN here.
-# If left empty and enable_power_tuner_deploy=true, Terraform deploys Power Tuner via SAR and uses that ARN.
-variable "power_tuner_arn" {
-  description = "Existing AWS Lambda Power Tuner State Machine ARN (optional)"
-  type        = string
-  default     = ""
-}
 
 # Toggle to auto-deploy Power Tuner via SAR (recommended)
 variable "enable_power_tuner_deploy" {
@@ -58,12 +51,13 @@ variable "semantic_version" {
   type = string
   default = "4.4.0"
 }
-variable "aws_powertuning_name" {
-  type = string
-  default = "powerTuningStateMachine"
-}
 
 variable "account_id" {
   type = string
   default = ""
+}
+
+variable "github_oidc_role" {
+  type = string
+  default = "github-oidc-deploy-role"
 }

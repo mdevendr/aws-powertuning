@@ -10,11 +10,15 @@ output "ask_approval" {
   value = var.ask_approval
 }
 
-output "power_tuner_state_machine_arn" {
-  value = data.aws_sfn_state_machine.power_tuner.arn
-  description = "State Machine ARN for AWS Lambda Power Tuning"
-}
-
 output "power_tuner_region" {
   value = local.power_tuner_region
+}
+
+# Make the State Machine ARN available to workflows / outputs
+output "power_tuner_state_machine_arn" {
+  value = data.aws_sfn_state_machine.power_tuner.arn
+}
+
+output "reports_bucket_name" {
+  value = aws_s3_bucket.tuning_reports.bucket
 }
