@@ -64,7 +64,10 @@ jobs:
         run: |
           sudo apt-get update -y
           sudo apt-get install -y jq zip
-
+      - name: Request OIDC Token
+        id: oidc
+        run: |
+          echo "Requesting token..."
       - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
