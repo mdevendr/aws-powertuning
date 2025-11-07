@@ -10,8 +10,7 @@ on:
 permissions:
   id-token: write
   contents: write
-  issues: write # <-- Add this
-  actions: write
+  issues: write
 
 env:
   AWS_REGION: eu-west-2
@@ -206,12 +205,12 @@ jobs:
           echo "✅ Recommended memory: ${BEST} MB"
 
       # NEW: simple approval before applying memory (as requested)
-      - name: Await Approval to update memory
-        if: ${{ steps.tune.outputs.best != '' }}
+      - name: Await Approval
+        if: ${{ env.MEMORY_UPDATE_MODE == 'manual' }}
         uses: trstringer/manual-approval@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          approvers: ${{ env.DEPLOY_APPROVER }}
+          secret: ${{ secrets.GITHUB_TOKEN }} # ✅ FIX: must be named 'secret'
+          approvers: mdevendr # ✅ Username, not org/team
           minimum-approvals: 1
           issue-title: "Approve Lambda memory update to ${{ steps.tune.outputs.best }} MB"
           issue-body: "Apply recommended memory to ${{ env.PROJECT }}-function?"
