@@ -1,0 +1,370 @@
+name: Tune Lambda
+
+on:
+  # Triggered automatically by deploy-infra via repository_dispatch
+  repository_dispatch:
+    types: [lambda-tune]
+
+  # Allow running manually too
+  workflow_dispatch:
+    inputs:
+      lambda_arn:
+        description: "Full Lambda ARN to tune"
+        required: false
+        default: ""
+      invoke_url:
+        description: "API base URL (e.g., https://xxx.execute-api.eu-west-2.amazonaws.com/prod)"
+        required: false
+        default: ""
+      ask_approval:
+        description: "Require manual approval before applying memory (true/false)"
+        required: false
+        default: "true"
+      strategy:
+        description: "Tuning strategy (balanced | cost | speed)"
+        required: false
+        default: "balanced"
+      power_values:
+        description: "Comma-separated memory values to test"
+        required: false
+        default: "128,256,512,1024"
+
+permissions:
+  id-token: write
+  contents: write
+  issues: write
+
+env:
+  PROJECT: serverless-power-tuning
+  DEFAULT_REGION: eu-west-2
+  # Fallback known state machine if discovery fails (kept for safety)
+  POWERTUNER_FALLBACK_ARN: arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b
+  # Who can approve (GitHub username)
+  DEPLOY_APPROVER: "mdevendr"
+
+jobs:
+  tune:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python (for any small tooling)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Node (for Newman)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Ensure CLI tools
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq zip
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.DEFAULT_REGION }}
+
+      # Resolve inputs (prefer repository_dispatch payload; else workflow_dispatch inputs)
+      - name: Resolve inputs
+        id: inputs
+        run: |
+          set -e
+
+          # From repository_dispatch
+          LAMBDA_ARN_RD="${{ github.event.client_payload.lambda_arn }}"
+          INVOKE_URL_RD="${{ github.event.client_payload.invoke_url }}"
+
+          # From workflow_dispatch inputs
+          LAMBDA_ARN_WD="${{ github.event.inputs.lambda_arn }}"
+          INVOKE_URL_WD="${{ github.event.inputs.invoke_url }}"
+          ASK_APPROVAL_WD="${{ github.event.inputs.ask_approval }}"
+          STRATEGY_WD="${{ github.event.inputs.strategy }}"
+          POWER_VALUES_WD="${{ github.event.inputs.power_values }}"
+
+          # Pick final values with sensible fallbacks
+          LAMBDA_ARN="${LAMBDA_ARN_RD:-$LAMBDA_ARN_WD}"
+          INVOKE_URL="${INVOKE_URL_RD:-$INVOKE_URL_WD}"
+          ASK_APPROVAL="${ASK_APPROVAL_WD:-true}"
+          STRATEGY="${STRATEGY_WD:-balanced}"
+          POWER_VALUES="${POWER_VALUES_WD:-128,256,512,1024}"
+
+          if [ -z "$LAMBDA_ARN" ]; then
+            echo "❌ LAMBDA_ARN is required (via repository_dispatch payload or workflow input)."
+            exit 1
+          fi
+
+          echo "lambda_arn=$LAMBDA_ARN" >> $GITHUB_OUTPUT
+          echo "invoke_url=$INVOKE_URL" >> $GITHUB_OUTPUT
+          echo "ask_approval=$ASK_APPROVAL" >> $GITHUB_OUTPUT
+          echo "strategy=$STRATEGY" >> $GITHUB_OUTPUT
+          echo "power_values=$POWER_VALUES" >> $GITHUB_OUTPUT
+
+      - name: Discover Lambda region from ARN
+        id: lregion
+        run: |
+          set -e
+          LAMBDA_ARN="${{ steps.inputs.outputs.lambda_arn }}"
+          # ARN format: arn:aws:lambda:<region>:<account>:function:<name>
+          REGION="$(echo "$LAMBDA_ARN" | cut -d: -f4)"
+          if [ -z "$REGION" ]; then
+            REGION="${{ env.DEFAULT_REGION }}"
+          fi
+          echo "region=$REGION" >> $GITHUB_OUTPUT
+
+      - name: Resolve Power Tuner State Machine ARN
+        id: tuner
+        run: |
+          set -e
+          LAMBDA_REGION="${{ steps.lregion.outputs.region }}"
+
+          find_tuner () {
+            REGION="$1"
+            aws stepfunctions list-state-machines --region "$REGION" \
+              --query "stateMachines[?contains(name, 'powerTuningStateMachine')].stateMachineArn" \
+              --output text
+          }
+
+          # 1) Try Lambda region first
+          TUNER_ARN="$(find_tuner "$LAMBDA_REGION" || true)"
+          if [ -n "$TUNER_ARN" ]; then
+            echo "arn=$TUNER_ARN" >> $GITHUB_OUTPUT
+            echo "region=$LAMBDA_REGION" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 2) Try us-west-2 (popular for the SAR app)
+          TUNER_ARN="$(find_tuner "us-west-2" || true)"
+          if [ -n "$TUNER_ARN" ]; then
+            echo "arn=$TUNER_ARN" >> $GITHUB_OUTPUT
+            echo "region=us-west-2" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 3) Fallback
+          echo "arn=${{ env.POWERTUNER_FALLBACK_ARN }}" >> $GITHUB_OUTPUT
+          echo "region=us-west-2" >> $GITHUB_OUTPUT
+          echo "⚠️ Falling back to POWERTUNER_FALLBACK_ARN"
+
+      - name: Run AWS Lambda Power Tuner
+        id: tune
+        env:
+          TUNER_ARN: ${{ steps.tuner.outputs.arn }}
+          TUNER_REGION: ${{ steps.tuner.outputs.region }}
+          LAMBDA_ARN: ${{ steps.inputs.outputs.lambda_arn }}
+          STRATEGY: ${{ steps.inputs.outputs.strategy }}
+          POWER_VALUES_CSV: ${{ steps.inputs.outputs.power_values }}
+        run: |
+          set -e
+
+          # Convert "128,256,512,1024" -> [128,256,512,1024]
+          PV_JSON="[$(echo "$POWER_VALUES_CSV" | sed 's/,/,/g')]"
+
+          INPUT=$(jq -n \
+            --arg lambda "$LAMBDA_ARN" \
+            --arg strat "$STRATEGY" \
+            --argjson pvals "$PV_JSON" \
+            '{
+              lambdaARN: $lambda,
+              powerValues: $pvals,
+              num: 20,
+              payload: {},
+              parallelInvocation: true,
+              strategy: $strat
+            }')
+
+          EXE=$(aws stepfunctions start-execution \
+            --region "$TUNER_REGION" \
+            --state-machine-arn "$TUNER_ARN" \
+            --input "$INPUT" \
+            --query executionArn \
+            --output text)
+
+          echo "Started: $EXE"
+
+          # Poll to completion
+          while true; do
+            STATUS=$(aws stepfunctions describe-execution \
+              --region "$TUNER_REGION" \
+              --execution-arn "$EXE" \
+              --query status \
+              --output text)
+            echo "Status: $STATUS"
+            if [ "$STATUS" = "SUCCEEDED" ], then break; fi
+            if [[ "$STATUS" == "FAILED" || "$STATUS" == "TIMED_OUT" || "$STATUS" == "ABORTED" ]]; then
+              echo "❌ Execution $STATUS"; exit 1
+            fi
+            sleep 8
+          done
+
+          aws stepfunctions describe-execution \
+            --region "$TUNER_REGION" \
+            --execution-arn "$EXE" \
+            --query output \
+            --output text > tuning-output.json
+
+          BEST=$(jq -r '.power' tuning-output.json)
+          if [ -z "$BEST" ] || [ "$BEST" = "null" ]; then
+            echo "❌ Could not parse recommended memory from tuning-output.json"
+            cat tuning-output.json
+            exit 1
+          fi
+          echo "best=$BEST" >> $GITHUB_OUTPUT
+          echo "✅ Recommended memory: ${BEST} MB"
+
+      # 🔗 NEW: Create simple HTML + Markdown with the interactive visualization link
+      - name: Generate Power Tuner Visualization Links
+        run: |
+          set -e
+          mkdir -p reports
+          VIS_URL=$(jq -r '.stateMachine.visualization // empty' tuning-output.json || true)
+
+          if [ -z "$VIS_URL" ]; then
+            echo "⚠️ No visualization URL present in tuning-output.json; skipping link files."
+            exit 0
+          fi
+
+          echo "🌐 Visualization URL: $VIS_URL"
+
+          # HTML wrapper
+          cat <<EOF > reports/power-tuner-report.html
+          <html>
+          <body>
+          <h2>AWS Lambda Power Tuning Visualization</h2>
+          <p><a href="$VIS_URL" target="_blank" rel="noreferrer noopener">$VIS_URL</a></p>
+          <p><i>Open link for performance vs cost chart.</i></p>
+          </body>
+          </html>
+          EOF
+
+          # Markdown wrapper
+          cat <<EOF > reports/power-tuner-report.md
+          ## AWS Lambda Power Tuning Visualization
+
+          **Open the interactive tuning result:**
+
+          🔗 $VIS_URL
+
+          *(This interactive visualization shows cost vs. performance for each tested memory configuration.)*
+          EOF
+
+          echo "✅ Power Tuner link reports generated (HTML + Markdown)"
+
+      # Optional manual approval gate (only if ask_approval == 'true')
+      - name: Await Approval
+        if: ${{ steps.inputs.outputs.ask_approval == 'true' }}
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: ${{ env.DEPLOY_APPROVER }}
+          minimum-approvals: 1
+          issue-title: "Approve Lambda memory update to ${{ steps.tune.outputs.best }} MB"
+          issue-body: "Apply recommended memory to function: ${{ steps.inputs.outputs.lambda_arn }}"
+
+      - name: Apply recommended memory
+        run: |
+          set -e
+          BEST="${{ steps.tune.outputs.best }}"
+          FN_ARN="${{ steps.inputs.outputs.lambda_arn }}"
+          FN_NAME="$(echo "$FN_ARN" | awk -F: '{print $NF}')"
+
+          if [ -z "$BEST" ]; then
+            echo "❌ No recommended memory value available."
+            exit 1
+          fi
+
+          echo "Updating $FN_NAME to $BEST MB..."
+          aws lambda update-function-configuration \
+            --function-name "$FN_NAME" \
+            --memory-size "$BEST"
+          echo "✅ Memory updated."
+
+      - name: Run Newman smoke tests
+        if: ${{ steps.inputs.outputs.invoke_url != '' }}
+        run: |
+          npm i -g newman newman-reporter-html
+          mkdir -p reports
+          newman run postman/collection.json \
+            -e postman/env.json \
+            --env-var apiBase="${{ steps.inputs.outputs.invoke_url }}" \
+            --env-var awsAccessKeyId="$AWS_ACCESS_KEY_ID" \
+            --env-var awsSecretAccessKey="$AWS_SECRET_ACCESS_KEY" \
+            --env-var awsSessionToken="$AWS_SESSION_TOKEN" \
+            --reporters cli,html \
+            --reporter-html-export reports/newman.html
+
+      - name: Create summary & archive reports
+        id: summarize
+        run: |
+          set -e
+          mkdir -p reports/history
+          TS=$(date +%Y%m%d-%H%M%S)
+          FN_ARN="${{ steps.inputs.outputs.lambda_arn }}"
+          FN_NAME="$(echo "$FN_ARN" | awk -F: '{print $NF}')"
+          REGION="${{ steps.lregion.outputs.region }}"
+
+          CURR=$(aws lambda get-function-configuration \
+            --function-name "$FN_NAME" \
+            --query MemorySize \
+            --output text || echo "unknown")
+
+          BEST="${{ steps.tune.outputs.best }}"
+          echo "Best=$BEST Current=$CURR"
+
+          {
+            echo "## Lambda Power Tuning Summary"
+            echo ""
+            echo "**Function:** $FN_NAME"
+            echo "**Region:** $REGION"
+            echo "**Current Memory (post-apply):** ${CURR} MB"
+            echo "**Recommended Memory:** ${BEST} MB"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|---|---:|"
+            echo "| Avg duration (sec) | $(jq -r '.duration' tuning-output.json) |"
+            echo "| Estimated cost | $(jq -r '.cost' tuning-output.json) |"
+            echo ""
+            echo "**Notes**"
+            echo "- Strategy: ${{ steps.inputs.outputs.strategy }}"
+            echo "- Power values tested: ${{ steps.inputs.outputs.power_values }}"
+          } > reports/memory-change-summary.md
+
+          # Timestamped archive folder
+          mkdir -p "reports/history/$TS"
+          cp tuning-output.json "reports/history/$TS/tuning-output.json"
+          test -f reports/newman.html && cp reports/newman.html "reports/history/$TS/newman.html"
+          test -f reports/power-tuner-report.html && cp reports/power-tuner-report.html "reports/history/$TS/power-tuner-report.html"
+          test -f reports/power-tuner-report.md && cp reports/power-tuner-report.md "reports/history/$TS/power-tuner-report.md"
+          cp reports/memory-change-summary.md "reports/history/$TS/memory-change-summary.md"
+
+          echo "ts=$TS" >> $GITHUB_OUTPUT
+
+      - name: Commit reports back to repo
+        run: |
+          set -e
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add reports/history/*
+          git add reports/memory-change-summary.md || true
+          git add reports/power-tuner-report.html || true
+          git add reports/power-tuner-report.md || true
+          git commit -m "Add tuning reports at ${{ steps.summarize.outputs.ts }}" || echo "No changes to commit"
+          git push
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tuning-and-tests
+          path: |
+            tuning-output.json
+            reports/memory-change-summary.md
+            reports/power-tuner-report.html
+            reports/power-tuner-report.md
+            reports/newman.html
+            reports/history/

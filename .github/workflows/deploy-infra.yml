@@ -117,6 +117,14 @@ jobs:
           # Export outputs to workflow env
           echo "invoke_url=$(terraform output -raw invoke_url)" >> $GITHUB_ENV
           echo "lambda_arn=$(aws lambda get-function --function-name \"${PROJECT}-function\" --query 'Configuration.FunctionArn' --output text)" >> $GITHUB_ENV
+      - name: Trigger Power Tuning Workflow
+        run: |
+          curl -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/dispatches \
+            -d "{\"event_type\": \"lambda-tune\", \"client_payload\": {\"lambda_arn\": \"${{ steps.deploy.outputs.lambda_arn }}\", \"invoke_url\": \"${{ steps.deploy.outputs.invoke_url }}\"}}"
 
       - name: Deployment Complete
         run: echo "🚀 Infrastructure deployed & tuning workflow triggered."
