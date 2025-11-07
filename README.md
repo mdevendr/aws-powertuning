@@ -1,16 +1,40 @@
-# 🚀 Serverless Power Tuning & Cost Optimization on AWS
+# Serverless Performance & Cost Optimization — Production-Ready Pattern
 
-This repository demonstrates a **production-ready pattern** for automatically evaluating and optimizing the **Lambda memory configuration** based on **performance vs cost trade-offs** — using:
+This repository demonstrates **how to measure, optimize, and continuously improve AWS Lambda performance and cost — using data, not assumptions.**
 
-- **AWS Lambda Power Tuning** (Step Functions)
-- **Terraform** for reproducible infrastructure
-- **GitHub Actions** with OIDC authentication (no stored IAM keys)
-- **Postman + Newman** for smoke + functional verification
-- **Optional Manual Approval** workflow for memory changes
+It brings together:
+
+| Capability | Technology Used |
+|----------|----------------|
+| API + Serverless Application | Lambda + API Gateway + DynamoDB |
+| Performance & Cost Benchmarking | **AWS Lambda Power Tuning (Step Functions)** |
+| Real-World Load Testing | **Postman + Newman** (automated) |
+| Automated CI/CD + Governance Controls | GitHub Actions + **OIDC (no stored IAM keys)** |
+| Transparent Decision Evidence | HTML/Markdown/PNG reports committed into `reports/` |
+
+### Why This Matters (Business & Architecture Perspective)
+
+Most teams configure Lambda memory **once** and never revisit it.  
+But workloads **change** — and so does the **performance → cost relationship**.
+
+> **More memory does *not* always mean higher cost.**
+>  
+> More memory ⇒ More CPU ⇒ Faster execution ⇒ **Lower or equal cost**.
+
+This repository provides a **repeatable, automated, auditable** way to prove and apply the *right* configuration.
+
+### Business Outcomes
+
+| Outcome | Benefit |
+|---|---|
+| **Reduced Cloud Cost** | Prevents over-provisioning & performance waste |
+| **Better Customer Experience** | Lower latency and faster response times |
+| **Governance & Risk Control** | Memory changes require optional approval |
+| **Repeatability & Standardization** | One method that scales across teams and workloads |
 
 ---
 
-## 🎯 Business & Architecture Overview
+## Business & Architecture Overview
 
 Lambda cost is directly influenced by **execution duration** and **configured memory**.  
 However, **more memory ≠ more cost** — because higher memory also allocates **more CPU**, often **reducing execution time significantly**.
@@ -26,15 +50,15 @@ This repository provides:
 | IaC (Terraform) | Repeatable across dev → staging → prod |
 
 ---
-## 🧩 Architecture (High-Level)
+## Architecture (High-Level)
 
 ### A. Executive / Business Overview
 
 This solution implements a **self-optimising serverless application** that automatically evaluates and improves its own **performance, cost efficiency, and scalability**. It continuously measures how different Lambda memory configurations impact **latency, throughput, and total execution cost**, then identifies the **optimal configuration** for the workload.
 
 Depending on governance requirements, the system can either:
-- ✅ **Apply the recommended memory automatically**
-- 🔒 Require **manual approval** before adjusting the Lambda configuration
+- **Apply the recommended memory automatically**
+- Require **manual approval** before adjusting the Lambda configuration
 
 #### Why This Matters
 
@@ -52,47 +76,6 @@ This pattern is valuable for:
 
 ---
 
-### B. Technical Architecture (For Architects & Engineers)
-
-      ┌───────────────────────┐
-      │       Client / CI     │
-      └──────────┬────────────┘
-                 │
-                 │ invoke_url
-                 ▼
-        ┌───────────────────────┐
-        │   Amazon API Gateway  │
-        └──────────┬────────────┘
-                   │  (AWS_PROXY Integration)
-                   ▼
-            ┌───────────────┐
-            │ AWS Lambda    │
-            │ (Application) │
-            └──────┬────────┘
-                   │ DynamoDB SDK (boto3)
-                   ▼
-         ┌───────────────────────┐
-         │ Amazon DynamoDB Table │
-         └───────────────────────┘
-
-
- ┌───────────────────────────────────────────────────────────────┐
- │                Performance Optimization Pipeline               │
- │                                                               │
- │  GitHub Actions (CI/CD)                                       │
- │       │                                                       │
- │       ▼                                                       │
- │  AWS Lambda Power Tuner (Step Functions State Machine)        │
- │       │  executes test invocations at multiple memory levels  │
- │       ▼                                                       │
- │  tuning-output.json                                           │
- │       │                                                       │
- │       ├─ Auto Mode → Lambda memory updated automatically      │
- │       └─ Manual Mode → GitHub Issue approval required         │
- └───────────────────────────────────────────────────────────────┘
-
----
-
 ### Key AWS Services
 
 | Component | Purpose |
@@ -104,10 +87,28 @@ This pattern is valuable for:
 | **GitHub Actions** | Automates deployment, testing, tuning, and approvals |
 | **Newman (Postman CLI)** | Validates API functionality post-deployment |
 | **IAM Roles / Policies** | Ensures least-privilege and secure execution |
+---
+## 📊 Evidence & Reports (Automatically Written to Git)
+
+| Report | Location | Purpose |
+|---|---|---|
+| AWS Powertuner (128,256,512,1024 MB) | `reports/pwrt1.pdf` | Baseline performance |
+| Raw Power Tuning Output | `reports/history/tuning-*.json` | Execution duration + cost by memory size |
+| Visualization Link (interactive) | `reports/power-tuner-report.md` | Shows cost/performance curve clearly |
+| Load Test (512 MB) | `reports/512MB.pdf` | Baseline performance |
+| Load Test (1024 MB) | `reports/1024MB.pdf` | Improved performance case |
+| Summary of Recommendation | `reports/memory-change-summary.md` | Decision justification |
+| CI Smoke Test Result | `reports/history/newman-*.html` | Verifies API still works post-change |
+
+### Example Power Tuning Visualizations
+(Already included in `reports/`)
+- `pwrt1.png`
+- `pwrt2.png`
+- `pwrt3.png`
 
 ---
 
-### 🔄 Memory Optimization Workflow
+### Memory Optimization Workflow
 
 1. Deploy infrastructure via Terraform  
 2. Power Tuner runs parallel Lambda executions across memory settings  
@@ -119,7 +120,7 @@ This pattern is valuable for:
 
 ---
 
-### 📁 Reports & Evidence (Automatically Generated)
+### Reports & Evidence (Automatically Generated)
 
 | Report Type | Location | Examples |
 |---|---|---|
@@ -131,13 +132,101 @@ This pattern is valuable for:
 
 ---
 
-### ✅ Design Principles Demonstrated
 
-- Serverless-first architecture
-- Automated performance & cost optimization
-- FinOps-friendly operational visibility
-- CI/CD-integrated governance and approvals
-- Repeatable + scalable pattern for enterprise workloads
+---
+
+## 📊 Evidence & Reports (Automatically Written to Git)
+
+| Report | Location | Purpose |
+|---|---|---|
+| Raw Power Tuning Output | `reports/history/tuning-*.json` | Execution duration + cost by memory size |
+| Visualization Link (interactive) | `reports/power-tuner-report.md` | Shows cost/performance curve clearly |
+| Load Test (512 MB) | `reports/512MB.pdf` | Baseline performance |
+| Load Test (1024 MB) | `reports/1024MB.pdf` | Improved performance case |
+| Summary of Recommendation | `reports/memory-change-summary.md` | Decision justification |
+| CI Smoke Test Result | `reports/history/newman-*.html` | Verifies API still works post-change |
+
+### Example Power Tuning Visualizations
+(Already included in `reports/`)
+- `pwrt1.png`
+- `pwrt2.png`
+- `pwrt3.png`
+
+---
+
+## 🧪 How Memory Optimization is Performed
+
+This repository supports **three ways to tune memory**, depending on your maturity:
+
+### **1) Manual Tuning in AWS Console (Quick Exploration)**
+
+1. Deploy workload
+2. Open AWS Lambda Power Tuning (console visualization)
+3. Observe which memory reduces execution time with minimal cost impact
+
+Used for early discovery and architectural justification.
+
+---
+
+### **2) Load Testing Optimization — “Elbow Method”**
+
+Use **Postman/Newman** to test real traffic patterns:
+
+| Memory | Avg Latency | Result |
+|---|---:|---|
+| **512 MB** | Higher latency | Baseline |
+| **1024 MB** | **~40–55% faster** | **Optimal for this workload** ✅ |
+
+See included reports:  
+- `reports/512MB.pdf`  
+- `reports/1024MB.pdf`
+
+---
+
+### **3) Automated Optimization Pipeline (This Repository)**
+
+* Executes tuning across selected memory levels  
+* Generates cost/performance evidence  
+* Creates a recommendation  
+* **If approvals are required → prompts via GitHub Issue**  
+* Updates Lambda memory configuration  
+* Runs smoke tests  
+* Commits final reports back into repo for transparency
+
+**Governance is controlled by a single variable:**
+
+| Mode | Behavior |
+|---|---|
+| `ask_approval = true` | Architect or Lead must approve before applying change |
+| `ask_approval = false` | Memory updated automatically (e.g., dev/staging) |
+
+---
+
+##  Key Takeaway
+
+> **We stop guessing. We start measuring.**  
+> **This repository makes performance tuning repeatable, governed, and evidence-based.**
+
+This is not *just* AWS Lambda Power Tuning.  
+This is a **production-ready decision framework** for Serverless optimization.
+
+---
+
+## Next Steps
+
+| If you want to… | Do this |
+|---|---|
+| Use this pattern in your org | Fork this repo & customize Lambda/package logic |
+| Apply to multiple services | Convert tuning workflow into a GitHub Action / reusable workflow |
+| Present to leadership | Use included PNG/HTML/MD evidence reports |
+
+---
+
+## Credits & Author
+
+**Mahesh Devendran**  
+Cloud Architect • AWS • Serverless • FinOps  
+[LinkedIn] (https://www.linkedin.com/in/mahesh-devendran-83a3b214/)
 
 ---
 

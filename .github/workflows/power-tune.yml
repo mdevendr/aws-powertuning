@@ -54,7 +54,7 @@ jobs:
       - name: Ensure only Mahesh can deploy
         if: ${{ github.actor != env.DEPLOY_APPROVER }}
         run: |
-          echo "❌ Deployment blocked: only $DEPLOY_APPROVER can deploy to main."
+          echo " Deployment blocked: only $DEPLOY_APPROVER can deploy to main."
           exit 1
 
       - uses: actions/checkout@v4
@@ -113,7 +113,7 @@ jobs:
             echo "ASK_APPROVAL=$val" >> $GITHUB_ENV
           else
             echo "ASK_APPROVAL=true" >> $GITHUB_ENV
-            echo "⚠️ Terraform output 'ask_approval' not found; defaulting ASK_APPROVAL=true"
+            echo " Terraform output 'ask_approval' not found; defaulting ASK_APPROVAL=true"
           fi
 
       - name: Discover Lambda ARN
@@ -139,7 +139,7 @@ jobs:
 
           EU_TUNER=$(find_tuner "eu-west-2" || true)
           if [ -n "$EU_TUNER" ]; then
-            echo "✅ Found tuner in eu-west-2: $EU_TUNER"
+            echo " Found tuner in eu-west-2: $EU_TUNER"
             echo "POWER_TUNER_ARN=$EU_TUNER" >> $GITHUB_ENV
             echo "POWER_TUNER_REGION=eu-west-2" >> $GITHUB_ENV
             exit 0
@@ -147,14 +147,14 @@ jobs:
 
           US_TUNER=$(find_tuner "us-west-2" || true)
           if [ -n "$US_TUNER" ]; then
-            echo "ℹ️ Using tuner in us-west-2: $US_TUNER"
+            echo " Using tuner in us-west-2: $US_TUNER"
             echo "POWER_TUNER_ARN=$US_TUNER" >> $GITHUB_ENV
             echo "POWER_TUNER_REGION=us-west-2" >> $GITHUB_ENV
             exit 0
           fi
 
           FALLBACK="arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
-          echo "⚠️ Could not discover tuner. Falling back to: $FALLBACK"
+          echo " Could not discover tuner. Falling back to: $FALLBACK"
           echo "POWER_TUNER_ARN=$FALLBACK" >> $GITHUB_ENV
           echo "POWER_TUNER_REGION=us-west-2" >> $GITHUB_ENV
 
@@ -199,7 +199,7 @@ jobs:
             echo "Status: $STATUS"
             if [ "$STATUS" = "SUCCEEDED" ]; then break; fi
             if [[ "$STATUS" == "FAILED" || "$STATUS" == "TIMED_OUT" || "$STATUS" == "ABORTED" ]]; then
-              echo "❌ Execution $STATUS"; exit 1;
+              echo " Execution $STATUS"; exit 1;
             fi
             sleep 8
           done
@@ -212,7 +212,7 @@ jobs:
 
           BEST=$(jq -r '.power' tuning-output.json)
           echo "best=$BEST" >> $GITHUB_OUTPUT
-          echo "✅ Recommended memory: ${BEST} MB"
+          echo " Recommended memory: ${BEST} MB"
 
       # Generate report: HTML + PNG (from Step Functions visualization)
       - name: Generate Power Tuner Report (HTML/Markdown-only)
@@ -220,7 +220,7 @@ jobs:
           mkdir -p reports
           VIS_URL=$(jq -r '.stateMachine.visualization' tuning-output.json)
 
-          echo "🌐 Visualization URL: $VIS_URL"
+          echo " Visualization URL: $VIS_URL"
 
           # Create a clickable HTML report
           cat <<EOF > reports/power-tuner-report.html
@@ -244,7 +244,7 @@ jobs:
           *(This interactive visualization shows cost vs. performance for each tested memory configuration.)*
           EOF
 
-          echo "✅ Power Tuner report generated (HTML + Markdown)"
+          echo " Power Tuner report generated (HTML + Markdown)"
 
       - name: Create Summary Report
         run: |
@@ -280,7 +280,7 @@ jobs:
           cp reports/power-tuner-report.md reports/history/power-tuner-$ts.md
           cp reports/memory-change-summary.md reports/history/memory-summary-$ts.md
 
-          echo "✅ Summary and history stored"
+          echo " Summary and history stored"
 
       # Manual approval when ask_approval = true
       - name: Await Memory Update Approval
@@ -342,23 +342,3 @@ jobs:
             reports/power-tuner-report.md
             reports/memory-change-summary.md
             reports/history/
-      - name: Commit & Push Reports to Repo
-        run: |
-          set -e
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Ensure we are on latest main
-          git pull origin main --rebase
-
-          # Stage only reports folder
-          git add reports/
-
-          # Commit only if there are changes
-          if git diff --cached --quiet; then
-            echo "No report changes to commit."
-          else
-            git commit -m "📊 Add latest tuning & test reports ($(date +'%Y-%m-%d %H:%M:%S'))"
-            git push origin main
-            echo "✅ Reports committed & pushed."
-          fi
