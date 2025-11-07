@@ -95,7 +95,7 @@ jobs:
       - name: Export variables 
         run: |
           echo "REPORTS_BUCKET=$(terraform output -raw reports_bucket_name)" >> $GITHUB_ENV
-          echo "POWER_TUNER_ARN=$(terraform output -raw power_tuner_state_machine_arn)" >> $GITHUB_ENV
+          echo "POWER_TUNER_ARN=$(terraform output -raw power_tuner_arn)" >> $GITHUB_ENV
           echo "POWER_TUNER_REGION=$(terraform output -raw power_tuner_region)" >> $GITHUB_ENV
 
       - name: Install Terraform
@@ -286,16 +286,29 @@ jobs:
 
           echo " Summary and history stored"
 
-      # Manual approval when ask_approval = true
-      - name: Await Memory Update Approval
-        if: ${{ env.ASK_APPROVAL == 'true' }}
+      - name: Await Approval
+        if: ${{ steps.inputs.outputs.ask_approval == 'true' }}
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ secrets.GITHUB_TOKEN }}
-          approvers: mdevendr
+          approvers: ${{ env.DEPLOY_APPROVER }}
           minimum-approvals: 1
           issue-title: "Approve Lambda memory update to ${{ steps.tune.outputs.best }} MB"
-          issue-body: "Apply recommended memory to ${{ env.PROJECT }}-function?"
+          issue-body: |
+            Recommended memory setting: **${{ steps.tune.outputs.best }} MB**
+
+            Reply with:
+            - **approve** or **lgtm** → apply change  
+            - **deny** → skip update
+          # Important: reduce polling
+          polling-interval: 30
+          timeout-minutes: 45
+
+      - name: Exit if Denied
+        if: ${{ steps.approval.outputs.approved != 'true' }}
+        run: |
+          echo "❌ Memory update request was denied or timed out."
+          exit 0
 
       # Auto-apply when ask_approval = false
       - name: Apply Memory Automatically

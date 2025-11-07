@@ -16,12 +16,11 @@ resource "aws_serverlessapplicationrepository_cloudformation_stack" "power_tuner
 }
 
 
-
 # Discover the Step Functions state machine ARN that SAR created
 data "aws_sfn_state_machine" "power_tuner" {
   depends_on = [aws_serverlessapplicationrepository_cloudformation_stack.power_tuner]
 
   # The SAR stack ALWAYS outputs this value
-  name = aws_serverlessapplicationrepository_cloudformation_stack.power_tuner.outputs["StateMachineName"]
+  arn = aws_serverlessapplicationrepository_cloudformation_stack.power_tuner.outputs["StateMachineArn"]
 }
 
