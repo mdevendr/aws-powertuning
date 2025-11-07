@@ -99,6 +99,48 @@ The pipeline automatically:
 
 All artifacts are **commit-stored** → traceable, reviewable, repeatable.
 
+                   ┌─────────────────────────────────────────┐
+                   │ Platform Engineer / Cloud CoE           │
+                   │ / Architecture Owner approves & merges  │
+                   └─────────────┬───────────────────────────┘  
+                                 │ Push / Merge
+                                 ▼
+                     ┌─────────────────────────┐
+                     │    GitHub Actions CI     │
+                     └───────┬────────┬────────┘
+                             │        │
+                             │        │ Deploy Infra (Terraform)
+                             │        ▼
+                             │   ┌─────────────────────┐
+                             │   │ API Gateway + Lambda │
+                             │   │ + DynamoDB           │
+                             │   └─────────┬───────────┘
+                             │             │
+                             │             │ Invoke for Tests
+                             │             ▼
+                             │   ┌─────────────────────┐
+                             │   │ Load Testing (Newman)│
+                             │   └─────────┬───────────┘
+                             │             │ Observed Metrics
+                             │             ▼
+                             │   ┌─────────────────────┐
+                             │   │ Lambda Power Tuner   │
+                             │   │ (Step Functions)     │
+                             │   └─────────┬───────────┘
+                             │             │ Tuning Output
+                             │             ▼
+                             │   ┌─────────────────────┐
+                             │   │ Report Generator     │
+                             │   │ (HTML / PNG / MD)    │
+                             │   └─────────┬───────────┘
+                             │             │
+               If Approval Required        │ If Auto Mode
+                     ▼                     ▼
+       ┌─────────────────────┐     ┌─────────────────────┐
+       │ GitHub Approval      │     │ Update Lambda Memory │
+       │ Issue-Based Review   │     │ Automatically        │
+       └─────────────────────┘     └─────────────────────┘
+
 ---
 
 ##  Final Takeaway
