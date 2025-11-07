@@ -361,5 +361,6 @@ jobs:
             reports/memory-change-summary.md
             reports/history/
       - name: Upload reports to S3
+        id: upload
         run: |
           aws s3 cp reports/history/ s3://${{env.REPORTS_BUCKET}}/${{steps.summarize.outputs.ts}}/ --recursive
