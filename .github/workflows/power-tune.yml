@@ -117,6 +117,7 @@ jobs:
           fi
 
       - name: Export Terraform Outputs
+        working-directory: infra/terraform
         run: |
           # Force clean non-interactive output
           REPORTS_BUCKET=$(terraform output -raw reports_bucket_name 2>/dev/null | tr -d '\r' || true)
