@@ -8,8 +8,8 @@ resource "aws_serverlessapplicationrepository_cloudformation_stack" "power_tuner
   application_id = var.power_tuner_application_id
 
   parameters = {
-    PowerValues        = var.lambdaPowerValues
-    parallelInvocation = "true"
+    # the parameters are passed at execution time as json;
+    # https://github.com/alexcasalboni/aws-lambda-power-tuning/blob/1a54f2085db0a3aecac8b8d19f10ffecf80964db/README-EXECUTE.md
   }
 
   capabilities = ["CAPABILITY_IAM"]
