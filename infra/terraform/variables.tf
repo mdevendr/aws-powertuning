@@ -44,7 +44,7 @@ variable "lambdaPowerValues" {
 
 variable "power_tuner_application_id" {
   type = string
-  default = "arn:aws:serverlessrepo:us-west-2:451282441545:applications/aws-lambda-power-tuning"
+  default = "arn:aws:serverlessrepo:us-east-1:451282441545:applications/aws-lambda-power-tuning"
 }
 
 variable "semantic_version" {

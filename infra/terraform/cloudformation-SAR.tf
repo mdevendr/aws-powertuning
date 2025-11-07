@@ -6,16 +6,16 @@
 resource "aws_serverlessapplicationrepository_cloudformation_stack" "power_tuner" {
   name           = "${var.project}-power-tuner"
   application_id = var.power_tuner_application_id
-  semantic_version = var.semantic_version
 
   parameters = {
     lambdaPowerValues        = var.lambdaPowerValues
-    lambdaStrategy           = "balanced"
     lambdaParallelInvocation = "true"
   }
 
   capabilities = ["CAPABILITY_IAM"]
 }
+
+
 
 # Discover the Step Functions state machine ARN that SAR created
 data "aws_sfn_state_machine" "power_tuner" {
