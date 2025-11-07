@@ -207,29 +207,34 @@ jobs:
 
           mkdir -p reports
 
-          # Download visualization JSON from power tuning output
-          VIS_URL=$(jq -r '.visualization' tuning-output.json)
+          # Extract visualization URL correctly
+          VIS_URL=$(jq -r '.stateMachine.visualization' tuning-output.json)
+
           if [ -z "$VIS_URL" ] || [ "$VIS_URL" = "null" ]; then
             echo "❌ No visualization URL found in tuning-output.json"
             cat tuning-output.json
             exit 1
           fi
-          curl -s -o reports/power-tuner-visualization.json "$VIS_URL"
 
-          # Extract SVG
+          echo "📊 Visualization URL: $VIS_URL"
+
+          # Download visualization JSON from the URL
+          curl -s "$VIS_URL" -o reports/power-tuner-visualization.json
+
+          # Extract the SVG
           jq -r '.svg' reports/power-tuner-visualization.json > reports/power-tuner-report.svg
 
-          # Install required tools (non-interactive, no prompts)
+          # Install required converter
           sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y librsvg2-bin
 
           # Convert SVG → PNG
           rsvg-convert -f png -o reports/power-tuner-report.png reports/power-tuner-report.svg
 
-          # Create HTML wrapper for web view
+          # Generate HTML version
           echo "<html><body><img src=\"power-tuner-report.png\" style=\"max-width:100%\"></body></html>" > reports/power-tuner-report.html
 
-          echo "✅ Power tuner report generated successfully"
+          echo "✅ Power tuner report successfully generated"
 
       - name: Create Summary Report
         run: |
