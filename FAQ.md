@@ -131,6 +131,32 @@ This ensures tuning stays accurate as **traffic patterns and workloads evolve**.
 | Governance & Auditability | Reports automatically stored and traceable |
 | Platform Standardization | Can be applied across many workloads consistently |
 
+### **Q11. Why are reports stored in the Git repository, and is this suitable for production?**
+
+Storing reports in Git is useful for:
+- Demonstrating traceability in simple environments
+- Sharing results across architecture and platform teams
+- Quick audit reference during development phases
+
+However, **most enterprises will not store operational tuning outputs in Git** long-term.
+
+Instead, the recommended production pattern is:
+
+**Use S3 as the System of Record**
+- Versioned S3 bucket (e.g., `org-platform-observability-lambda-tuning`)
+- SSE encryption (SSE-S3 or SSE-KMS)
+- Lifecycle policies (e.g., retain 6–12 months)
+- Optional access controls by platform / FinOps / architecture teams
+
+**Optional Enhancements**
+- **Athena** queries for trend analysis
+- **QuickSight** dashboards for organizational insight
+- **EventBridge** triggers for automated re-tuning signals (traffic change, latency drift, etc.)
+
+**Summary**
+- Git storage is acceptable for **demo / PoC / team-level adoption**
+- **S3-based storage is recommended for production**
+
 ---
 
 If you need an enterprise-ready rollout playbook (multi-team), I can generate that as well.
