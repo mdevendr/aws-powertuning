@@ -10,7 +10,6 @@ on:
 permissions:
   id-token: write
   contents: write
-  issues: write
 
 env:
   AWS_REGION: eu-west-2
@@ -61,18 +60,12 @@ jobs:
 
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
-
-      # tiny guard to ensure tooling used later is present
-      - name: Ensure required CLI tools
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y zip jq
-
       - name: Request OIDC Token
         id: oidc
         run: |
           echo "Requesting token..."
 
+        # This actually retrieves the token
       - uses: actions/github-script@v7
         id: show-token
         with:
@@ -85,7 +78,6 @@ jobs:
         run: |
           chmod +x package.sh
           ./package.sh
-
       - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -103,56 +95,23 @@ jobs:
           terraform init -input=false -upgrade
           terraform apply -auto-approve -input=false
           echo "invoke_url=$(terraform output -raw invoke_url)" >> $GITHUB_ENV
-          echo "MEMORY_UPDATE_MODE=$(terraform output -raw memory_update_mode)" >> $GITHUB_ENV
 
       - name: Discover Lambda ARN
         id: lambda
         run: |
           ARN=$(aws lambda get-function --function-name "${{ env.PROJECT }}-function" --query 'Configuration.FunctionArn' --output text)
           echo "arn=$ARN" >> $GITHUB_OUTPUT
-          echo "LAMBDA_ARN=$ARN" >> $GITHUB_ENV
-          echo "Discovered Lambda ARN: $ARN"
-
-      # Resolve Power Tuner ARN dynamically (eu-west-2 → us-west-2 → fallback)
-      - name: Resolve Power Tuner ARN (prefer eu-west-2, fallback us-west-2)
-        id: resolve-tuner
-        run: |
-          set -e
-          find_tuner () {
-            REGION="$1"
-            aws stepfunctions list-state-machines --region "$REGION" --query "stateMachines[?contains(name, 'powerTuningStateMachine')].stateMachineArn" --output text
-          }
-
-          EU_TUNER=$(find_tuner "eu-west-2" || true)
-          if [ -n "$EU_TUNER" ]; then
-            echo "✅ Found tuner in eu-west-2: $EU_TUNER"
-            echo "POWER_TUNER_ARN=$EU_TUNER" >> $GITHUB_ENV
-            echo "POWER_TUNER_REGION=eu-west-2" >> $GITHUB_ENV
-            exit 0
-          fi
-
-          US_TUNER=$(find_tuner "us-west-2" || true)
-          if [ -n "$US_TUNER" ]; then
-            echo "ℹ️ Using tuner in us-west-2: $US_TUNER"
-            echo "POWER_TUNER_ARN=$US_TUNER" >> $GITHUB_ENV
-            echo "POWER_TUNER_REGION=us-west-2" >> $GITHUB_ENV
-            exit 0
-          fi
-
-          FALLBACK="arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
-          echo "⚠️ Could not discover tuner. Falling back to: $FALLBACK"
-          echo "POWER_TUNER_ARN=$FALLBACK" >> $GITHUB_ENV
-          echo "POWER_TUNER_REGION=us-west-2" >> $GITHUB_ENV
 
       - name: Run AWS Lambda Power Tuner
         id: tune
         env:
-          POWER_TUNER_ARN: ${{ env.POWER_TUNER_ARN }}
-          POWER_TUNER_REGION: ${{ env.POWER_TUNER_REGION }}
-          LAMBDA_ARN: ${{ env.LAMBDA_ARN }}
+          AWS_REGION: us-west-2 # State Machine region
+          AWS_DEFAULT_REGION: us-west-2
+          POWER_TUNER_ARN: "arn:aws:states:us-west-2:211125489043:stateMachine:powerTuningStateMachine-8d6ae210-bb08-11f0-98f3-0656addddf6b"
+          LAMBDA_ARN: "arn:aws:lambda:eu-west-2:211125489043:function:serverless-power-tuning-function"
         run: |
           set -e
-          echo "Using tuner ARN: $POWER_TUNER_ARN in $POWER_TUNER_REGION"
+
           STRATEGY="balanced"
 
           INPUT=$(jq -n \
@@ -168,7 +127,7 @@ jobs:
             }')
 
           EXE=$(aws stepfunctions start-execution \
-            --region "$POWER_TUNER_REGION" \
+            --region "$AWS_REGION" \
             --state-machine-arn "$POWER_TUNER_ARN" \
             --input "$INPUT" \
             --query executionArn \
@@ -176,13 +135,16 @@ jobs:
 
           echo "Started: $EXE"
 
+          # Poll until finish
           while true; do
             STATUS=$(aws stepfunctions describe-execution \
-              --region "$POWER_TUNER_REGION" \
+              --region "$AWS_REGION" \
               --execution-arn "$EXE" \
               --query status \
               --output text)
+
             echo "Status: $STATUS"
+
             if [ "$STATUS" = "SUCCEEDED" ]; then break; fi
             if [[ "$STATUS" == "FAILED" || "$STATUS" == "TIMED_OUT" || "$STATUS" == "ABORTED" ]]; then
               echo "❌ Execution $STATUS"; exit 1;
@@ -191,130 +153,21 @@ jobs:
           done
 
           OUT=$(aws stepfunctions describe-execution \
-            --region "$POWER_TUNER_REGION" \
+            --region "$AWS_REGION" \
             --execution-arn "$EXE" \
             --query output \
             --output text)
 
           echo "$OUT" > tuning-output.json
+
           BEST=$(jq -r '.power' tuning-output.json)
           echo "best=$BEST" >> $GITHUB_OUTPUT
           echo "✅ Recommended memory: ${BEST} MB"
-
-      - name: Generate Power Tuner Report (HTML + PNG)
-        run: |
-          set -e
-
-          mkdir -p reports
-
-          # Extract visualization URL correctly
-          VIS_URL=$(jq -r '.stateMachine.visualization' tuning-output.json)
-
-          if [ -z "$VIS_URL" ] || [ "$VIS_URL" = "null" ]; then
-            echo "❌ No visualization URL found in tuning-output.json"
-            cat tuning-output.json
-            exit 1
-          fi
-
-          echo "📊 Visualization URL: $VIS_URL"
-
-          # Download visualization JSON from the URL
-          curl -s "$VIS_URL" -o reports/power-tuner-visualization.json
-
-          # Extract the SVG
-          jq -r '.svg' reports/power-tuner-visualization.json > reports/power-tuner-report.svg
-
-          # Install required converter
-          sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y librsvg2-bin
-
-          # Convert SVG → PNG
-          rsvg-convert -f png -o reports/power-tuner-report.png reports/power-tuner-report.svg
-
-          # Generate HTML version
-          echo "<html><body><img src=\"power-tuner-report.png\" style=\"max-width:100%\"></body></html>" > reports/power-tuner-report.html
-
-          echo "✅ Power tuner report successfully generated"
-
-      - name: Create Summary Report
-        run: |
-          mkdir -p reports/history
-          ts=$(date +%Y%m%d-%H%M%S)
-          BEST="${{ steps.tune.outputs.best }}"
-          CURRENT=$(aws lambda get-function-configuration \
-            --function-name "${{ env.PROJECT }}-function" \
-            --query MemorySize \
-            --output text)
-
-          {
-            echo "## Lambda Power Tuning Summary"
-            echo ""
-            echo "**Function:** ${{ env.PROJECT }}-function"
-            echo "**Region:** ${{ env.AWS_REGION }}"
-            echo "**Current Memory:** ${CURRENT} MB"
-            echo "**Recommended Memory:** ${BEST} MB"
-            echo ""
-            if [ "$CURRENT" -eq "$BEST" ]; then
-              echo "✅ Lambda is already using the optimal memory setting."
-            else
-              echo "⚠️ Memory update pending approval or has been auto-applied depending on mode."
-            fi
-          } > reports/memory-change-summary.md
-
-          cp tuning-output.json reports/history/tuning-$ts.json
-          cp reports/power-tuner-report.html reports/history/power-tuner-$ts.html
-          cp reports/power-tuner-report.png reports/history/power-tuner-$ts.png
-          cp reports/memory-change-summary.md reports/history/memory-summary-$ts.md
-
-      # Manual approval before applying memory (respects MEMORY_UPDATE_MODE)
-      - name: Await Approval
-        if: ${{ env.MEMORY_UPDATE_MODE == 'manual' }}
-        uses: trstringer/manual-approval@v1
-        with:
-          secret: ${{ secrets.GITHUB_TOKEN }}
-          approvers: mdevendr
-          minimum-approvals: 1
-          issue-title: "Approve Lambda memory update to ${{ steps.tune.outputs.best }} MB"
-          issue-body: "Apply recommended memory to ${{ env.PROJECT }}-function?"
 
       - name: Update Lambda memory
         run: |
           echo "Best memory determined = ${{ steps.tune.outputs.best }}"
           aws lambda update-function-configuration --function-name "${{ env.PROJECT }}-function" --memory-size "${{ steps.tune.outputs.best }}"
-
-      - name: Run Newman smoke tests
-        run: |
-          npm install -g newman newman-reporter-html
-          mkdir -p reports
-          newman run postman/collection.json \
-            -e postman/env.json \
-            --env-var apiBase="${{ env.invoke_url }}" \
-            --env-var awsAccessKeyId="${{ env.AWS_ACCESS_KEY_ID }}" \
-            --env-var awsSecretAccessKey="${{ env.AWS_SECRET_ACCESS_KEY }}" \
-            --env-var awsSessionToken="${{ env.AWS_SESSION_TOKEN }}" \
-            --reporters cli,html \
-            --reporter-html-export reports/newman.html
-
-      - name: Convert HTML report to Markdown
-        run: |
-          pip install html2text
-          html2text reports/newman.html > reports/newman.md
-          head -n 20 reports/newman.md || true
-
-      # ✅ Commit reports back to repo
-      - name: Commit reports back to repo
-        run: |
-          set -e
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          mkdir -p reports/history
-          ts=$(date +%Y%m%d-%H%M%S)
-          cp reports/newman.html reports/history/newman-$ts.html
-          cp reports/newman.md   reports/history/newman-$ts.md
-          # power tuner + summary already copied in Create Summary step
-          git add reports/history/*
-          git commit -m "Add tuning + smoke test reports ($ts)" || echo "No changes to commit"
-          git push || echo "No push needed"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -323,8 +176,3 @@ jobs:
           path: |
             tuning-output.json
             reports/newman.html
-            reports/newman.md
-            reports/power-tuner-report.html
-            reports/power-tuner-report.png
-            reports/memory-change-summary.md
-            reports/history/
