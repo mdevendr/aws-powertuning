@@ -103,6 +103,7 @@ jobs:
           terraform init -input=false -upgrade
           terraform apply -auto-approve -input=false
           echo "invoke_url=$(terraform output -raw invoke_url)" >> $GITHUB_ENV
+          echo "MEMORY_UPDATE_MODE=$(terraform output -raw memory_update_mode)" >> $GITHUB_ENV
 
       - name: Discover Lambda ARN
         id: lambda

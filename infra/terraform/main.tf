@@ -197,3 +197,7 @@ output "invoke_url" {
 output "power_tuner_arn" {
   value = local.power_tuner_arn
 }
+
+output "memory_update_mode" {
+  value = var.memory_update_mode
+}
