@@ -144,9 +144,10 @@ For organisations with multiple teams and environments, the tuning workflow can 
 
 This approach turns AWS Lambda Power Tuning from a **one-off task** into a **continuous performance management discipline** across teams.
 
-If you are considering standardising this capability across multiple teams or environments, 
-guidance is available for rollout, governance alignment, and integration with existing platform operating models.
+If you are considering standardising this capability across multiple teams or environments,  guidance is available for rollout, governance alignment, and integration with existing platform operating models.
+
 ---
+
 ###  Production Deployment Note
 
 In this reference implementation, tuning reports and summaries are committed back to the Git repository (`/reports/history/`) to make results easy to browse and review.
