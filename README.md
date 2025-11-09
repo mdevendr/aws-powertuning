@@ -126,7 +126,9 @@ Benefits:
 - Centralized visibility across teams
 - Enforced retention / lifecycle policies
 - Easy integration with **Athena**, **QuickSight**, **FinOps dashboards**, or **Snowflake ingestion**
-
+---
+### FAQ
+See here -> [FAQ](./FAQ.md)
 ---
 ##  Final Takeaway
 
