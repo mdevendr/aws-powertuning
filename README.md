@@ -114,7 +114,38 @@ The reports are stored in git for showcasing
 
 All artifacts are **commit-stored** → traceable, reviewable, repeatable.
 
+---
+## Enterprise Adoption & Scale-out Pattern
 
+This implementation is designed to be used not just for a single function, but as a **repeatable platform capability**.  
+For organisations with multiple teams and environments, the tuning workflow can be standardised and rolled out as part of a broader **serverless engineering operating model**.
+
+### Key Considerations for Enterprise Rollout
+- **Multi-Environment Support**  
+  Configure S3 report storage with environment prefixes (e.g., `dev/`, `test/`, `prod/`) to maintain audit separation.
+- **Governance & Approvals**  
+  The workflow includes an optional approval gate before applying recommended memory settings. This enables alignment with CAB, architecture review boards, or internal change controls.
+- **Security & Access Control**  
+  GitHub → AWS authentication is performed using **OIDC**, avoiding long-lived IAM keys and aligning with modern cloud security standards.
+- **Cross-Team Reuse**  
+  The tuning workflow is **decoupled** from the infrastructure deployment, making it plug-and-play for any Lambda-based workload without modifying application logic.
+- **Reporting & Evidence**  
+  Performance, cost, and load testing evidence is stored centrally (S3 or internal dashboard) to support:
+  - FinOps analysis
+  - Architectural review
+  - Production promotion decisions
+  - Regression/health trend monitoring over time
+
+### Example Enterprise Rollout Model
+1. Create a **central S3 bucket** for storing tuning reports and decision summaries.
+2. Share the tuning workflow as a **reusable GitHub Actions workflow** (`.github/workflows/tune-lambda.yml`) that teams can call.
+3. Enable optional approval so that recommended memory changes align to **governance policy**.
+4. Schedule tuning to run periodically or based on workload change triggers (e.g., release, traffic increase, or latency threshold alert).
+
+This approach turns AWS Lambda Power Tuning from a **one-off task** into a **continuous performance management discipline** across teams.
+
+If you are considering standardising this capability across multiple teams or environments, 
+guidance is available for rollout, governance alignment, and integration with existing platform operating models.
 ---
 ###  Production Deployment Note
 
